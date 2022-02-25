@@ -11,4 +11,4 @@
 )]
 mod jni_c_header;
 
-include!(concat!(env!("OUT_DIR"), "/java_glue.rs"));
+include!(concat!(env!("OUT_DIR"), "/args.rs"));

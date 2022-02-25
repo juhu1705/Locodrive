@@ -3,16 +3,63 @@
  */
 package de.noisruker.locodrive;
 
-import org.checkerframework.checker.units.qual.A;
+import de.noisruker.event.EventManager;
+import de.noisruker.event.events.Event;
+import de.noisruker.event.events.IEventListener;
+import de.noisruker.locodrive.args.*;
+import de.noisruker.locodrive.control.ILocoNetMessage;
+import de.noisruker.locodrive.control.LocoNetEvent;
+import de.noisruker.locodrive.control.LocoNetHandler;
+import de.noisruker.logger.Logger;
+import org.checkerframework.checker.index.qual.LengthOf;
 import org.junit.Test;
+
+import java.awt.*;
+import java.util.EventListener;
+
 import static org.junit.Assert.*;
 
 public class LibraryTest {
-    @Test public void someLibraryMethodReturnsTrue() {
-        Library classUnderTest = new Library();
-        assertTrue("someLibraryMethod should return 'true'", classUnderTest.someLibraryMethod());
+
+    @Test public void someLibraryMethodReturnsTrue() throws Exception {
+        System.out.println("Test start");
+
+        for(String port: LocoNetHandler.getInstance().getPortInfos()) {
+            System.out.println(port);
+        }
+
+        LocoNetHandler.getInstance().connectTo(LocoNetHandler.getInstance().getPortInfos()[0]);
+
+        EventManager.getInstance().registerEventListener(LocoNetEvent.LocoSpdEvent.class, event -> Logger.LOGGER.info("Test"));
+        EventManager.getInstance().registerEventListener(LocoNetEvent.GpOnEvent.class, event -> Logger.LOGGER.info("TUST"));
+        EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info("2"));
 
         AddressArg address = new AddressArg(16);
         assertEquals("AddressArg", 16, address.address());
+
+        LocoNetHandler.getInstance().startReader();
+
+        LocoNetHandler.getInstance().send(new GpOn());
+
+        Thread.sleep(100);
+
+        System.out.println("Start sending");
+
+        LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 100));
+
+        System.out.println("Send");
+
+        Thread.sleep(100);
+
+        LocoNetHandler.getInstance().stop();
+
+        Thread.sleep(100);
+
+        LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0));
+
+        LocoNetHandler.getInstance().send(new GpOn());
+
+        System.out.println("Handle stopped");
     }
+
 }

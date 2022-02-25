@@ -1,6 +1,6 @@
 [package]
 name = "locodrive"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Fabius Mettner <fabius1705@live.de>"]
 edition = "2021"
 
@@ -12,7 +12,7 @@ name = "locodrive"
 
 [dependencies]
 log = "^0.4.6"
-serial = "0.4"
+serialport = "4.0.1"
 
 [build-dependencies]
 flapigen = "0.6.0-pre7"

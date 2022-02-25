@@ -1,6 +1,57 @@
 use crate::jni_c_header::*;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 use std::time::Duration;
+
+use std::io::prelude::*;
+use std::io;
+use std::io::Write as IoWrite;
+use std::fmt::Write as FmtWrite;
+use std::result::Result;
+use std::env;
+
+use std::error::Error;
+
+use serialport::{DataBits, FlowControl, Parity, StopBits, SerialPort};
+
+#[derive(Debug)]
+pub enum MessageParseError {
+    UnknownOpcode(u8),
+    UnexpectedEnd,
+    InvalidChecksum,
+    IoError(io::Error)
+}
+
+impl Display for MessageParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownOpcode(opc) => write!(f, "unknown opcode: {:x}", opc),
+            Self::UnexpectedEnd => write!(f, "unexpected end of stream"),
+            Self::InvalidChecksum => write!(f, "invalid checksum"),
+            Self::IoError(err) => write!(f, "IO Error: {}", err),
+        }
+    }
+}
+
+impl Error for MessageParseError {}
+
+impl MessageParseError {
+    fn msg(&self) -> String {
+        let mut f = String::new();
+        match self {
+            Self::UnknownOpcode(opc) => write!(&mut f, "unknown opcode: {:x}", opc).unwrap_or(()),
+            Self::UnexpectedEnd => write!(&mut f, "unexpected end of stream").unwrap_or(()),
+            Self::InvalidChecksum => write!(&mut f, "invalid checksum").unwrap_or(()),
+            Self::IoError(err) => write!(&mut f, "io error: {}", err).unwrap_or(()),
+        };
+        f
+    }
+}
+
+foreign_class!(class MessageParseError {
+    self_type MessageParseError;
+    private constructor = empty;
+    fn MessageParseError::msg(&self) -> String; alias toString;
+});
 
 #[derive(Debug, Copy, Clone)]
 pub struct AddressArg(u16);
@@ -36,13 +87,18 @@ impl AddressArg {
     pub fn adr2(&self) -> u8 {
         ((self.0 >> 7) & 0x007F) as u8
     }
+
+    pub fn equals(&self, other: AddressArg) -> bool {
+        self.0 == other.0
+    }
 }
 
 foreign_class!(class AddressArg {
     self_type AddressArg;
     constructor AddressArg::new(_: u16) -> AddressArg;
     fn AddressArg::address(&self) -> u16;
-    fn AddressArg::set_address(&mut self, _: u16);
+    fn AddressArg::set_address(&mut self, _: u16); alias setAddress;
+    fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equalsTo;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -137,9 +193,9 @@ foreign_class!(class SwitchArg {
     fn SwitchArg::address(&self) -> u16;
     fn SwitchArg::direction(&self) -> SwitchDirection;
     fn SwitchArg::state(&self) -> bool;
-    fn SwitchArg::set_address(&mut self, _: u16);
-    fn SwitchArg::set_direction(&mut self, _: SwitchDirection);
-    fn SwitchArg::set_state(&mut self, _: bool);
+    fn SwitchArg::set_address(&mut self, _: u16); alias setAddress;
+    fn SwitchArg::set_direction(&mut self, _: SwitchDirection); alias setDirection;
+    fn SwitchArg::set_state(&mut self, _: bool); alias setState;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -162,13 +218,18 @@ impl SlotArg {
         );
         self.0 = number;
     }
+
+    pub fn equals(&self, other: SlotArg) -> bool {
+        self.0 == other.0
+    }
 }
 
 foreign_class!(class SlotArg {
     self_type SlotArg;
     constructor SlotArg::parse(_: u8) -> SlotArg;
     fn SlotArg::slot(&self) -> u8;
-    fn SlotArg::set_number(&mut self, _: u8);
+    fn SlotArg::set_number(&mut self, _: u8); alias setNumber;
+    fn SlotArg::equals(&self, other: SlotArg) -> bool; alias equalsTo;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -262,8 +323,8 @@ foreign_class!(class DirfArg {
     constructor DirfArg::parse(_: u8) -> DirfArg;
     fn DirfArg::dir(&self) -> bool;
     fn DirfArg::f(&self, _: u8) -> bool;
-    fn DirfArg::set_dir(&mut self, _: bool);
-    fn DirfArg::set_f(&mut self, _: u8, _: bool);
+    fn DirfArg::set_dir(&mut self, _: bool); alias setDir;
+    fn DirfArg::set_f(&mut self, _: u8, _: bool); alias setF;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -326,10 +387,10 @@ impl TrkArg {
 foreign_class!(class TrkArg {
     self_type TrkArg;
     constructor TrkArg::new(_: bool, _: bool, _: bool, _: bool) -> TrkArg;
-    fn TrkArg::power_on(&self) -> bool;
-    fn TrkArg::track_idle(&self) -> bool;
+    fn TrkArg::power_on(&self) -> bool; alias powerOn;
+    fn TrkArg::track_idle(&self) -> bool; alias trackIdle;
     fn TrkArg::mlok1(&self) -> bool;
-    fn TrkArg::prog_busy(&self) -> bool;
+    fn TrkArg::prog_busy(&self) -> bool; alias progBusy;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -370,7 +431,7 @@ foreign_class!(class SndArg {
     self_type SndArg;
     constructor SndArg::parse(_: u8) -> SndArg;
     fn SndArg::f(&self, _: u8) -> bool;
-    fn SndArg::set_f(&mut self, _: u8, _: bool);
+    fn SndArg::set_f(&mut self, _: u8, _: bool); alias setF;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -520,11 +581,11 @@ impl Stat1Arg {
 
 foreign_class!(class Stat1Arg {
     self_type Stat1Arg;
-    constructor Stat1Arg::new(_: bool, _: Consist, _: State, _: DecoderType) -> Stat1Arg;
+    constructor Stat1Arg::new(_: bool, _: Consist, _: State, decoder: DecoderType) -> Stat1Arg;
     fn Stat1Arg::spurge(&self) -> bool;
     fn Stat1Arg::consist(&self) -> Consist;
     fn Stat1Arg::state(&self) -> State;
-    fn Stat1Arg::decoder_type(&self) -> DecoderType;
+    fn Stat1Arg::decoder_type(&self) -> DecoderType; alias decoderType;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -580,9 +641,9 @@ impl Stat2Arg {
 foreign_class!(class Stat2Arg {
     self_type Stat2Arg;
     constructor Stat2Arg::new(_: bool, _: bool, _: bool) -> Stat2Arg;
-    fn Stat2Arg::has_adv(&self) -> bool;
-    fn Stat2Arg::no_id_usage(&self) -> bool;
-    fn Stat2Arg::id_encoded_alias(&self) -> bool;
+    fn Stat2Arg::has_adv(&self) -> bool; alias hasAdv;
+    fn Stat2Arg::no_id_usage(&self) -> bool; alias noIdUsage;
+    fn Stat2Arg::id_encoded_alias(&self) -> bool; alias idEncodedAlias;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -607,7 +668,7 @@ foreign_class!(class LopcArg {
     self_type LopcArg;
     constructor LopcArg::parse(_: u8) -> LopcArg;
     fn LopcArg::lopc(&self) -> u8;
-    fn LopcArg::set_lopc(&mut self, _: u8);
+    fn LopcArg::set_lopc(&mut self, _: u8); alias setLopc;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -648,10 +709,10 @@ foreign_class!(class Ack1Arg {
     constructor Ack1Arg::parse(_: u8) -> Ack1Arg;
     fn Ack1Arg::ack1(&self) -> u8;
     fn Ack1Arg::success(&self) -> bool;
-    fn Ack1Arg::is_busy(&self) -> bool;
+    fn Ack1Arg::is_busy(&self) -> bool; alias isBusy;
     fn Ack1Arg::accepted(&self) -> bool;
-    fn Ack1Arg::accepted_blind(&self) -> bool;
-    fn Ack1Arg::set_code(&mut self, _: u8);
+    fn Ack1Arg::accepted_blind(&self) -> bool; alias acceptedBlind;
+    fn Ack1Arg::set_code(&mut self, _: u8); alias setCode;
 });
 
 #[derive(Copy, Clone)]
@@ -781,13 +842,13 @@ foreign_class!(class InArg {
     self_type InArg;
     constructor InArg::new(_: u16, _: SourceType, _: bool) -> InArg;
     fn InArg::address(&self) -> u16;
-    fn InArg::address_ds54(&self) -> u16;
-    fn InArg::source_type(&self) -> SourceType;
+    fn InArg::address_ds54(&self) -> u16; alias addressDs54;
+    fn InArg::source_type(&self) -> SourceType; alias sourceType;
     fn InArg::state(&self) -> bool;
-    fn InArg::set_address(&mut self, _: u16);
-    fn InArg::set_address_ds54(&mut self, _: u16);
-    fn InArg::set_source_type(&mut self, _: SourceType);
-    fn InArg::set_state(&mut self, _: bool);
+    fn InArg::set_address(&mut self, _: u16); alias setAddress;
+    fn InArg::set_address_ds54(&mut self, _: u16); alias setAddressDs54;
+    fn InArg::set_source_type(&mut self, _: SourceType); alias setSourceType;
+    fn InArg::set_state(&mut self, _: bool); alias setState;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -878,10 +939,10 @@ foreign_class!(class SnArg {
     fn SnArg::format(&self) -> bool;
     fn SnArg::c(&self) -> bool;
     fn SnArg::t(&self) -> bool;
-    fn SnArg::set_address(&mut self, _: u16);
-    fn SnArg::set_format(&mut self, _: bool);
-    fn SnArg::set_c(&mut self, _: bool);
-    fn SnArg::set_t(&mut self, _: bool);
+    fn SnArg::set_address(&mut self, _: u16); alias setAddress;
+    fn SnArg::set_format(&mut self, _: bool); alias setFormat;
+    fn SnArg::set_c(&mut self, _: bool); alias setC;
+    fn SnArg::set_t(&mut self, _: bool);alias setT;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -924,7 +985,7 @@ impl MTypeArg {
 foreign_class!(class MTypeArg {
     self_type MTypeArg;
     constructor MTypeArg::parse(_: u8) -> MTypeArg;
-    fn MTypeArg::m_type(&self) -> u8;
+    fn MTypeArg::m_type(&self) -> u8; alias mType;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1072,7 +1133,7 @@ foreign_class!(class FunctionArg {
     constructor FunctionArg::parse(_: u8, _: u8) -> FunctionArg;
     fn FunctionArg::group(&self) -> u8;
     fn FunctionArg::f(&self, _: u8) -> bool;
-    fn FunctionArg::set_f(&mut self, _: u8, _: bool);
+    fn FunctionArg::set_f(&mut self, _: u8, _: bool); alias setF;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1147,8 +1208,8 @@ foreign_class!(class Pcmd {
     self_type Pcmd;
     constructor Pcmd::new(_: bool, _: bool, _: bool, _: bool, _: bool) -> Pcmd;
     fn Pcmd::write(&self) -> bool;
-    fn Pcmd::byte_mode(&self) -> bool;
-    fn Pcmd::ops_mode(&self) -> bool;
+    fn Pcmd::byte_mode(&self) -> bool; alias byteMode;
+    fn Pcmd::ops_mode(&self) -> bool; alias opsMode;
     fn Pcmd::ty1(&self) -> bool;
     fn Pcmd::ty2(&self) -> bool;
 });
@@ -1214,10 +1275,10 @@ impl PStat {
 foreign_class!(class PStat {
     self_type PStat;
     constructor PStat::new(_: bool, _: bool, _: bool, _: bool) -> PStat;
-    fn PStat::user_aborted(&self) -> bool;
-    fn PStat::no_read_ack(&self) -> bool;
-    fn PStat::no_write_ack(&self) -> bool;
-    fn PStat::programming_track_empty(&self) -> bool;
+    fn PStat::user_aborted(&self) -> bool; alias userAborted;
+    fn PStat::no_read_ack(&self) -> bool; alias noReadAck;
+    fn PStat::no_write_ack(&self) -> bool; alias noWriteAck;
+    fn PStat::programming_track_empty(&self) -> bool; alias programmingTrackEmpty;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1240,8 +1301,8 @@ impl Hopsa {
 foreign_class!(class Hopsa {
     self_type Hopsa;
     constructor Hopsa::parse(_: u8) -> Hopsa;
-    fn Hopsa::service_mode(&self) -> bool;
-    fn Hopsa::o_mode(&self) -> u8;
+    fn Hopsa::service_mode(&self) -> bool; alias serviceMode;
+    fn Hopsa::o_mode(&self) -> u8; alias oMode;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1264,8 +1325,8 @@ impl Lopsa {
 foreign_class!(class Lopsa {
     self_type Lopsa;
     constructor Lopsa::parse(_: u8) -> Lopsa;
-    fn Lopsa::service_mode(&self) -> bool;
-    fn Lopsa::o_mode(&self) -> u8;
+    fn Lopsa::service_mode(&self) -> bool; alias serviceMode;
+    fn Lopsa::o_mode(&self) -> u8; alias oMode;
 });
 
 #[derive(Copy, Clone)]
@@ -1356,8 +1417,8 @@ foreign_class!(class CvArg {
     constructor CvArg::new() -> CvArg;
     fn CvArg::data7(&self) -> bool;
     fn CvArg::cv(&self, _: u8) -> bool;
-    fn CvArg::set_data7(&mut self, _: bool);
-    fn CvArg::set_cv(&mut self, _: u8, _: bool);
+    fn CvArg::set_data7(&mut self, _: bool); alias setData7;
+    fn CvArg::set_cv(&mut self, _: u8, _: bool); alias setCv;
 });
 
 #[derive(Copy, Clone)]
@@ -1413,7 +1474,7 @@ foreign_class!(class DataArg {
     constructor DataArg::new() -> DataArg;
     constructor DataArg::parse(_: u8) -> DataArg;
     fn DataArg::d(&self, _: u8) -> bool;
-    fn DataArg::set_d(&mut self, _: u8, _: bool);
+    fn DataArg::set_d(&mut self, _: u8, _: bool); alias setD;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1442,8 +1503,8 @@ impl ClkRateArg {
 foreign_class!(class ClkRateArg {
     self_type ClkRateArg;
     constructor ClkRateArg::parse(_: u8) -> ClkRateArg;
-    fn ClkRateArg::clk_rate(&self) -> u8;
-    fn ClkRateArg::set_rate(&mut self, _: u8);
+    fn ClkRateArg::clk_rate(&self) -> u8; alias clkRate;
+    fn ClkRateArg::set_rate(&mut self, _: u8); alias setRate;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1504,14 +1565,14 @@ impl FastClock {
 
 foreign_class!(class FastClock {
     self_type FastClock;
-    constructor FastClock::parse(clk_rate: u8, frac_minsl: u8, frac_minsh: u8, mins: u8, hours: u8, days: u8, clk_cntrl: u8) -> FastClock;
-    fn FastClock::clk_rate(&self) -> u8;
-    fn FastClock::frac_minsl(&self) -> u8;
-    fn FastClock::frac_minsh(&self) -> u8;
+    constructor FastClock::parse(clkRate: u8, fracMinsl: u8, fracMinsh: u8, mins: u8, hours: u8, days: u8, clkCntrl: u8) -> FastClock;
+    fn FastClock::clk_rate(&self) -> u8; alias clkRate;
+    fn FastClock::frac_minsl(&self) -> u8; alias fracMinsl;
+    fn FastClock::frac_minsh(&self) -> u8; alias fracMinsh;
     fn FastClock::mins(&self) -> u8;
     fn FastClock::hours(&self) -> u8;
     fn FastClock::days(&self) -> u8;
-    fn FastClock::clk_cntrl(&self) -> u8;
+    fn FastClock::clk_cntrl(&self) -> u8; alias clkCntrl;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1625,14 +1686,14 @@ impl ImArg {
 
 foreign_class!(class ImArg {
     self_type ImArg;
-    constructor ImArg::new(reps: u8, dhi: u8, address: u16, function_type: u8, function_bits: u8, im5: u8) -> ImArg;
-    constructor ImArg::parse(check_byte: u8, reps: u8, dhi: u8, im1: u8, im2 : u8, im3: u8, im4: u8, im5: u8) -> ImArg;
-    fn ImArg::check_byte(&self) -> u8;
+    constructor ImArg::new(reps: u8, dhi: u8, address: u16, functionType: u8, functionBits: u8, im5: u8) -> ImArg;
+    constructor ImArg::parse(checkByte: u8, reps: u8, dhi: u8, im1: u8, im2 : u8, im3: u8, im4: u8, im5: u8) -> ImArg;
+    fn ImArg::check_byte(&self) -> u8; alias checkByte;
     fn ImArg::reps(&self) -> u8;
     fn ImArg::dhi(&self) -> u8;
     fn ImArg::address(&self) -> u16;
-    fn ImArg::function_type(&self) -> u8;
-    fn ImArg::function_bits(&self) -> u8;
+    fn ImArg::function_type(&self) -> u8; alias functionType;
+    fn ImArg::function_bits(&self) -> u8; alias functionBits;
     fn ImArg::im1(&self) -> u8;
     fn ImArg::im2(&self) -> u8;
     fn ImArg::im3(&self) -> u8;
@@ -1669,10 +1730,10 @@ impl WrSlDataTime {
 
 foreign_class!(class WrSlDataTime {
     self_type WrSlDataTime;
-    constructor WrSlDataTime::new(_: FastClock, _: TrkArg, _: IdArg) -> WrSlDataTime;
-    fn WrSlDataTime::fast_clock(&self) -> FastClock;
-    fn WrSlDataTime::trk_arg(&self) -> TrkArg;
-    fn WrSlDataTime::id_arg(&self) -> IdArg;
+    constructor WrSlDataTime::new(fastClock: FastClock, trkArg: TrkArg, idArg: IdArg) -> WrSlDataTime;
+    fn WrSlDataTime::fast_clock(&self) -> FastClock; alias fastClock;
+    fn WrSlDataTime::trk_arg(&self) -> TrkArg; alias trkArg;
+    fn WrSlDataTime::id_arg(&self) -> IdArg; alias idArg;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1714,13 +1775,13 @@ impl WrSlDataPt {
 
 foreign_class!(class WrSlDataPt {
     self_type WrSlDataPt;
-    constructor WrSlDataPt::new(_: Pcmd, _: Hopsa, _: Lopsa, _: TrkArg, _: CvArg, _: DataArg) -> WrSlDataPt;
+    constructor WrSlDataPt::new(_: Pcmd, _: Hopsa, _: Lopsa, trkArg: TrkArg, cvArg: CvArg, dataArg: DataArg) -> WrSlDataPt;
     fn WrSlDataPt::pcmd(&self) -> Pcmd;
     fn WrSlDataPt::hopsa(&self) -> Hopsa;
     fn WrSlDataPt::lopsa(&self) -> Lopsa;
-    fn WrSlDataPt::trk_arg(&self) -> TrkArg;
-    fn WrSlDataPt::cv_arg(&self) -> CvArg;
-    fn WrSlDataPt::data_arg(&self) -> DataArg;
+    fn WrSlDataPt::trk_arg(&self) -> TrkArg; alias trkArg;
+    fn WrSlDataPt::cv_arg(&self) -> CvArg; alias cvArg;
+    fn WrSlDataPt::data_arg(&self) -> DataArg; alias dataArg;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1787,16 +1848,16 @@ impl WrSlDataGeneral {
 foreign_class!(class WrSlDataGeneral {
     self_type WrSlDataGeneral;
     constructor WrSlDataGeneral::new(_: SlotArg, _: Stat1Arg, _: Stat2Arg, _: AddressArg, _: SpeedArg, _: DirfArg, _: TrkArg, _: IdArg) -> WrSlDataGeneral;
-    fn WrSlDataGeneral::slot_arg(&self) -> SlotArg;
-    fn WrSlDataGeneral::stat1_arg(&self) -> Stat1Arg;
-    fn WrSlDataGeneral::stat2_arg(&self) -> Stat2Arg;
-    fn WrSlDataGeneral::address_arg(&self) -> AddressArg;
-    fn WrSlDataGeneral::speed_arg(&self) -> SpeedArg;
-    fn WrSlDataGeneral::dirf_arg(&self) -> DirfArg;
-    fn WrSlDataGeneral::trk_arg(&self) -> TrkArg;
-    fn WrSlDataGeneral::snd_arg(&self) -> SndArg;
-    fn WrSlDataGeneral::id_arg(&self) -> IdArg;
-    fn WrSlDataGeneral::set_snd_arg(&mut self, _: SndArg);
+    fn WrSlDataGeneral::slot_arg(&self) -> SlotArg; alias slotArg;
+    fn WrSlDataGeneral::stat1_arg(&self) -> Stat1Arg; alias stat1Arg;
+    fn WrSlDataGeneral::stat2_arg(&self) -> Stat2Arg; alias stat2Arg;
+    fn WrSlDataGeneral::address_arg(&self) -> AddressArg; alias addressArg;
+    fn WrSlDataGeneral::speed_arg(&self) -> SpeedArg; alias speedArg;
+    fn WrSlDataGeneral::dirf_arg(&self) -> DirfArg; alias dirfArg;
+    fn WrSlDataGeneral::trk_arg(&self) -> TrkArg; alias trkArg;
+    fn WrSlDataGeneral::snd_arg(&self) -> SndArg; alias sndArg;
+    fn WrSlDataGeneral::id_arg(&self) -> IdArg; alias idArg;
+    fn WrSlDataGeneral::set_snd_arg(&mut self, _: SndArg); alias setSndArg;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1851,10 +1912,10 @@ impl WrSlDataStructure {
 foreign_class!(class WrSlDataStructure {
     self_type WrSlDataStructure;
     constructor WrSlDataStructure::new(_: u8, _: WrSlDataTime, _: WrSlDataPt, _: WrSlDataGeneral) -> WrSlDataStructure;
-    fn WrSlDataStructure::slot_type(&self) -> u8;
-    fn WrSlDataStructure::time_slot(&self) -> WrSlDataTime;
-    fn WrSlDataStructure::pt_slot(&self) -> WrSlDataPt;
-    fn WrSlDataStructure::general_slot(&self) -> WrSlDataGeneral;
+    fn WrSlDataStructure::slot_type(&self) -> u8; alias slotType;
+    fn WrSlDataStructure::time_slot(&self) -> WrSlDataTime; alias timeSlot;
+    fn WrSlDataStructure::pt_slot(&self) -> WrSlDataPt; alias ptSlot;
+    fn WrSlDataStructure::general_slot(&self) -> WrSlDataGeneral; alias generalSlot;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -1993,14 +2054,14 @@ impl RFID5Report {
 
 foreign_class!(class RFID5Report {
     self_type RFID5Report;
-    constructor RFID5Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfid_hi: u8) -> RFID5Report;
+    constructor RFID5Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfidHi: u8) -> RFID5Report;
     fn RFID5Report::arg1(&self) -> u8;
     fn RFID5Report::rfid0(&self) -> u8;
     fn RFID5Report::rfid1(&self) -> u8;
     fn RFID5Report::rfid2(&self) -> u8;
     fn RFID5Report::rfid3(&self) -> u8;
     fn RFID5Report::rfid4(&self) -> u8;
-    fn RFID5Report::rfid_hi(&self) -> u8;
+    fn RFID5Report::rfid_hi(&self) -> u8; alias rfidHi;
     fn RFID5Report::address(&self) -> u16;
 });
 
@@ -2087,7 +2148,7 @@ foreign_class!(class RFID7Report {
     fn RFID7Report::rfid4(&self) -> u8;
     fn RFID7Report::rfid5(&self) -> u8;
     fn RFID7Report::rfid6(&self) -> u8;
-    fn RFID7Report::rfid_hi(&self) -> u8;
+    fn RFID7Report::rfid_hi(&self) -> u8; alias rfidHi;
     fn RFID7Report::address(&self) -> u16;
 });
 
@@ -2164,6 +2225,22 @@ pub enum RepStructure {
 }
 
 impl RepStructure {
+    pub fn new_lissy_ir(rep: LissyIrReport) -> Self {
+        RepStructure::LissyIrReport(rep)
+    }
+
+    pub fn new_rfid_5(rep: RFID5Report, _b1: bool) -> Self {
+        RepStructure::RFID5Report(rep)
+    }
+
+    pub fn new_rfid_7(rep: RFID7Report, _b1: bool, _b2: bool) -> Self {
+        RepStructure::RFID7Report(rep)
+    }
+
+    pub fn new_wheelcnt(rep: WheelcntReport, _b1: bool, _b2: bool, _b3: bool) -> Self {
+        RepStructure::WheelcntReport(rep)
+    }
+
     pub fn parse(count: u8, args: &[u8]) -> Self {
         return if args[0] == 0x00 {
             Self::LissyIrReport(LissyIrReport::parse(args[0], args[1], args[2], args[3], args[4], args[5]))
@@ -2175,7 +2252,65 @@ impl RepStructure {
             Self::RFID7Report(RFID7Report::parse(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10]))
         }
     }
+
+    pub fn get_type(&self) -> u8 {
+        match self {
+            Self::LissyIrReport(_) => 0,
+            Self::RFID5Report(_) => 1,
+            Self::RFID7Report(_) => 2,
+            Self::WheelcntReport(_) => 3,
+        }
+    }
+
+    pub fn get_lissy_ir_report(&self) -> LissyIrReport {
+        match self {
+            Self::LissyIrReport(rep) => *rep,
+            Self::RFID5Report(_) => panic!("This information is not available!"),
+            Self::RFID7Report(_) => panic!("This information is not available!"),
+            Self::WheelcntReport(_) => panic!("This information is not available!"),
+        }
+    }
+
+    pub fn get_rfid5_report(&self) -> RFID5Report {
+        match self {
+            Self::LissyIrReport(_) => panic!("This information is not available!"),
+            Self::RFID5Report(rep) => *rep,
+            Self::RFID7Report(_) => panic!("This information is not available!"),
+            Self::WheelcntReport(_) => panic!("This information is not available!"),
+        }
+    }
+
+    pub fn get_rfid7_report(&self) -> RFID7Report {
+        match self {
+            Self::LissyIrReport(_) => panic!("This information is not available!"),
+            Self::RFID5Report(_) => panic!("This information is not available!"),
+            Self::RFID7Report(rep) => *rep,
+            Self::WheelcntReport(_) => panic!("This information is not available!"),
+        }
+    }
+
+    pub fn get_wheelcnt_report(&self) -> WheelcntReport {
+        match self {
+            Self::LissyIrReport(_) => panic!("This information is not available!"),
+            Self::RFID5Report(_) => panic!("This information is not available!"),
+            Self::RFID7Report(_) => panic!("This information is not available!"),
+            Self::WheelcntReport(rep) => *rep,
+        }
+    }
 }
+
+foreign_class!(class RepStructure {
+    self_type RepStructure;
+    constructor RepStructure::new_lissy_ir(rep: LissyIrReport) -> RepStructure;
+    constructor RepStructure::new_rfid_5(rep: RFID5Report, b1: bool) -> RepStructure;
+    constructor RepStructure::new_rfid_7(rep: RFID7Report, b1: bool, b2: bool) -> RepStructure;
+    constructor RepStructure::new_wheelcnt(rep: WheelcntReport, b1: bool, b2: bool, b3: bool) -> RepStructure;
+    fn RepStructure::get_wheelcnt_report(&self) -> WheelcntReport; alias getWheelcntReport;
+    fn RepStructure::get_rfid7_report(&self) -> RFID7Report; alias getRfid7Report;
+    fn RepStructure::get_rfid5_report(&self) -> RFID5Report; alias getRfid5Report;
+    fn RepStructure::get_lissy_ir_report(&self) -> LissyIrReport; alias getLissyIrReport;
+    fn RepStructure::get_type(&self) -> u8; alias getType;
+});
 
 #[derive(Debug, Copy, Clone)]
 pub struct DstArg(u16);
@@ -2321,3 +2456,1227 @@ foreign_class!(class PxctData {
     fn PxctData::d7(&self) -> u8;
     fn PxctData::d8(&self) -> u8;
 });
+
+pub trait LocoNetMessage {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool;
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Idle();
+
+impl LocoNetMessage for Idle {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0x85 as u8])
+    }
+}
+
+impl Idle {
+    pub fn new() -> Self {
+        Idle()
+    }
+}
+
+foreign_class!(class Idle {
+    self_type Idle;
+    constructor Idle::new() -> Idle;
+    fn Idle::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct GpOn();
+
+impl LocoNetMessage for GpOn {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        println!("Rust calls sending");
+        loco_connector.write(vec![0x83 as u8])
+    }
+}
+
+impl GpOn {
+    pub fn new() -> Self {
+        println!("Rust creates gpon!");
+        GpOn()
+    }
+}
+
+foreign_class!(class GpOn {
+    self_type GpOn;
+    constructor GpOn::new() -> GpOn;
+    fn GpOn::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct GpOff();
+
+impl LocoNetMessage for GpOff {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0x82 as u8])
+    }
+}
+
+impl GpOff {
+    pub fn new() -> Self { GpOff() }
+}
+
+foreign_class!(class GpOff {
+    self_type GpOff;
+    constructor GpOff::new() -> GpOff;
+    fn GpOff::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct Busy();
+
+impl LocoNetMessage for Busy {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0x81 as u8])
+    }
+}
+
+impl Busy {
+    pub fn new() -> Self { Busy() }
+}
+
+foreign_class!(class Busy {
+    self_type Busy;
+    constructor Busy::new() -> Busy;
+    fn Busy::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LocoAdr(AddressArg);
+
+impl LocoNetMessage for LocoAdr {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xBF as u8, self.0.adr2(), self.0.adr1()])
+    }
+}
+
+impl LocoAdr {
+    pub fn new(address: AddressArg) -> Self { LocoAdr(address) }
+    pub fn get_address(&self) -> AddressArg { self.0 }
+}
+
+foreign_class!(class LocoAdr {
+    self_type LocoAdr;
+    constructor LocoAdr::new(address: AddressArg) -> LocoAdr;
+    fn LocoAdr::get_address(&self) -> AddressArg; alias getAddress;
+    fn LocoAdr::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SwAck(SwitchArg);
+
+impl LocoNetMessage for SwAck {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xBD as u8, self.0.sw1(), self.0.sw2()])
+    }
+}
+
+impl SwAck {
+    pub fn new(sw: SwitchArg) -> Self { SwAck(sw) }
+    pub fn get_switch(&self) -> SwitchArg { self.0 }
+}
+
+foreign_class!(class SwAck {
+    self_type SwAck;
+    constructor SwAck::new(sw: SwitchArg) -> SwAck;
+    fn SwAck::get_switch(&self) -> SwitchArg; alias getSwitch;
+    fn SwAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SwState(SwitchArg);
+
+impl LocoNetMessage for SwState {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xBC as u8, self.0.sw1(), self.0.sw2()])
+    }
+}
+
+impl SwState {
+    pub fn new(sw: SwitchArg) -> Self { SwState(sw) }
+    pub fn get_switch(&self) -> SwitchArg { self.0 }
+}
+
+foreign_class!(class SwState {
+    self_type SwState;
+    constructor SwState::new(sw: SwitchArg) -> SwState;
+    fn SwState::get_switch(&self) -> SwitchArg; alias getSwitch;
+    fn SwState::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct RqSlData(SlotArg);
+
+impl LocoNetMessage for RqSlData {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xBB as u8, self.0.slot(), 0x00 as u8])
+    }
+}
+
+impl RqSlData {
+    pub fn new(slot: SlotArg) -> Self { RqSlData(slot) }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+}
+
+foreign_class!(class RqSlData {
+    self_type RqSlData;
+    constructor RqSlData::new(slot: SlotArg) -> RqSlData;
+    fn RqSlData::get_slot(&self) -> SlotArg; alias getSlot;
+    fn RqSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct MoveSlots(SlotArg, SlotArg);
+
+impl LocoNetMessage for MoveSlots {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xBA as u8, self.0.slot(), self.1.slot()])
+    }
+}
+
+impl MoveSlots {
+    pub fn new(slot_from: SlotArg, slot_to: SlotArg) -> Self {
+        MoveSlots(slot_from, slot_to)
+    }
+    pub fn get_slot_from(&self) -> SlotArg { self.0 }
+    pub fn get_slot_to(&self) -> SlotArg { self.1 }
+}
+
+foreign_class!(class MoveSlots {
+    self_type MoveSlots;
+    constructor MoveSlots::new(slotFrom: SlotArg, slotTo: SlotArg) -> MoveSlots;
+    fn MoveSlots::get_slot_from(&self) -> SlotArg; alias getSlotFrom;
+    fn MoveSlots::get_slot_to(&self) -> SlotArg; alias getSlotTo;
+    fn MoveSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LinkSlots(SlotArg, SlotArg);
+
+impl LocoNetMessage for LinkSlots {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB9 as u8, self.0.slot(), self.1.slot()])
+    }
+}
+
+impl LinkSlots {
+    pub fn new(slot1: SlotArg, slot2: SlotArg) -> Self {
+        LinkSlots(slot1, slot2)
+    }
+    pub fn get_slot1(&self) -> SlotArg { self.0 }
+    pub fn get_slot2(&self) -> SlotArg { self.1 }
+}
+
+foreign_class!(class LinkSlots {
+    self_type LinkSlots;
+    constructor LinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> LinkSlots;
+    fn LinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
+    fn LinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
+    fn LinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct UnlinkSlots(SlotArg, SlotArg);
+
+impl LocoNetMessage for UnlinkSlots {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB8 as u8, self.0.slot(), self.1.slot()])
+    }
+}
+
+impl UnlinkSlots {
+    pub fn new(slot1: SlotArg, slot2: SlotArg) -> Self {
+        UnlinkSlots(slot1, slot2)
+    }
+    pub fn get_slot1(&self) -> SlotArg { self.0 }
+    pub fn get_slot2(&self) -> SlotArg { self.1 }
+}
+
+foreign_class!(class UnlinkSlots {
+    self_type UnlinkSlots;
+    constructor UnlinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> UnlinkSlots;
+    fn UnlinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
+    fn UnlinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
+    fn UnlinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct ConsistFunc(SlotArg, DirfArg);
+
+impl LocoNetMessage for ConsistFunc {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB6 as u8, self.0.slot(), self.1.dirf()])
+    }
+}
+
+impl ConsistFunc {
+    pub fn new(slot: SlotArg, dirf: DirfArg) -> Self {
+        ConsistFunc(slot, dirf)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_dirf(&self) -> DirfArg { self.1 }
+}
+
+foreign_class!(class ConsistFunc {
+    self_type ConsistFunc;
+    constructor ConsistFunc::new(slot: SlotArg, dirf: DirfArg) -> ConsistFunc;
+    fn ConsistFunc::get_slot(&self) -> SlotArg; alias getSlot;
+    fn ConsistFunc::get_dirf(&self) -> DirfArg; alias getDirf;
+    fn ConsistFunc::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SlotStat1(SlotArg, Stat1Arg);
+
+impl LocoNetMessage for SlotStat1 {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB5 as u8, self.0.slot(), self.1.stat1()])
+    }
+}
+
+impl SlotStat1 {
+    pub fn new(slot: SlotArg, stat1: Stat1Arg) -> Self {
+        SlotStat1(slot, stat1)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_stat1(&self) -> Stat1Arg { self.1 }
+}
+
+foreign_class!(class SlotStat1 {
+    self_type SlotStat1;
+    constructor SlotStat1::new(slot: SlotArg, dirf: Stat1Arg) -> SlotStat1;
+    fn SlotStat1::get_slot(&self) -> SlotArg; alias getSlot;
+    fn SlotStat1::get_stat1(&self) -> Stat1Arg; alias getStat1;
+    fn SlotStat1::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LongAck(LopcArg, Ack1Arg);
+
+impl LocoNetMessage for LongAck {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB4 as u8, self.0.lopc(), self.1.ack1()])
+    }
+}
+
+impl LongAck {
+    pub fn new(lopc: LopcArg, ack1: Ack1Arg) -> Self {
+        LongAck(lopc, ack1)
+    }
+    pub fn get_lopc(&self) -> LopcArg { self.0 }
+    pub fn get_ack1(&self) -> Ack1Arg { self.1 }
+}
+
+foreign_class!(class LongAck {
+    self_type LongAck;
+    constructor LongAck::new(lopc: LopcArg, ack1: Ack1Arg) -> LongAck;
+    fn LongAck::get_lopc(&self) -> LopcArg; alias getLopc;
+    fn LongAck::get_ack1(&self) -> Ack1Arg; alias getAck1;
+    fn LongAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct InputRep(InArg);
+
+impl LocoNetMessage for InputRep {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB2 as u8, self.0.in1(), self.0.in2()])
+    }
+}
+
+impl InputRep {
+    pub fn new(in_arg: InArg) -> Self {
+        InputRep(in_arg)
+    }
+    pub fn get_in_arg(&self) -> InArg { self.0 }
+}
+
+foreign_class!(class InputRep {
+    self_type InputRep;
+    constructor InputRep::new(inArg: InArg) -> InputRep;
+    fn InputRep::get_in_arg(&self) -> InArg; alias getInArg;
+    fn InputRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SwRep(SnArg);
+
+impl LocoNetMessage for SwRep {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB1 as u8, self.0.sn1(), self.0.sn2()])
+    }
+}
+
+impl SwRep {
+    pub fn new(sn_arg: SnArg) -> Self {
+        SwRep(sn_arg)
+    }
+    pub fn get_sn_arg(&self) -> SnArg { self.0 }
+}
+
+foreign_class!(class SwRep {
+    self_type SwRep;
+    constructor SwRep::new(snArg: SnArg) -> SwRep;
+    fn SwRep::get_sn_arg(&self) -> SnArg; alias getSnArg;
+    fn SwRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SwReq(SwitchArg);
+
+impl LocoNetMessage for SwReq {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xB0 as u8, self.0.sw1(), self.0.sw2()])
+    }
+}
+
+impl SwReq {
+    pub fn new(switch_arg: SwitchArg) -> Self {
+        SwReq(switch_arg)
+    }
+    pub fn get_switch_arg(&self) -> SwitchArg { self.0 }
+}
+
+foreign_class!(class SwReq {
+    self_type SwReq;
+    constructor SwReq::new(switchArg: SwitchArg) -> SwReq;
+    fn SwReq::get_switch_arg(&self) -> SwitchArg; alias getSwitchArg;
+    fn SwReq::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LocoSnd(SlotArg, SndArg);
+
+impl LocoNetMessage for LocoSnd {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xA2 as u8, self.0.slot(), self.1.snd()])
+    }
+}
+
+impl LocoSnd {
+    pub fn new(slot: SlotArg, snd: SndArg) -> Self {
+        LocoSnd(slot, snd)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_snd(&self) -> SndArg { self.1 }
+}
+
+foreign_class!(class LocoSnd {
+    self_type LocoSnd;
+    constructor LocoSnd::new(slot: SlotArg, snd: SndArg) -> LocoSnd;
+    fn LocoSnd::get_slot(&self) -> SlotArg; alias getSlot;
+    fn LocoSnd::get_snd(&self) -> SndArg; alias getSnd;
+    fn LocoSnd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LocoDirf(SlotArg, DirfArg);
+
+impl LocoNetMessage for LocoDirf {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xA1 as u8, self.0.slot(), self.1.dirf()])
+    }
+}
+
+impl LocoDirf {
+    pub fn new(slot: SlotArg, dirf: DirfArg) -> Self {
+        LocoDirf(slot, dirf)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_dirf(&self) -> DirfArg { self.1 }
+}
+
+foreign_class!(class LocoDirf {
+    self_type LocoDirf;
+    constructor LocoDirf::new(slot: SlotArg, dirf: DirfArg) -> LocoDirf;
+    fn LocoDirf::get_slot(&self) -> SlotArg; alias getSlot;
+    fn LocoDirf::get_dirf(&self) -> DirfArg; alias getDirf;
+    fn LocoDirf::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct LocoSpd(SlotArg, SpeedArg);
+
+impl LocoNetMessage for LocoSpd {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xA0 as u8, self.0.slot(), self.1.spd()])
+    }
+}
+
+impl LocoSpd {
+    pub fn new_easy(slot: SlotArg, spd: u16) -> Self {
+        LocoSpd(slot, SpeedArg::parse(spd as u8))
+    }
+    pub fn new(slot: SlotArg, spd: SpeedArg) -> Self {
+        LocoSpd(slot, spd)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_spd(&self) -> SpeedArg { self.1 }
+}
+
+foreign_class!(class LocoSpd {
+    self_type LocoSpd;
+    constructor LocoSpd::new(slot: SlotArg, spd: SpeedArg) -> LocoSpd;
+    constructor LocoSpd::new_easy(slot: SlotArg, spd: u16) -> LocoSpd;
+    fn LocoSpd::get_slot(&self) -> SlotArg; alias getSlot;
+    fn LocoSpd::get_spd(&self) -> SpeedArg; alias getSpd;
+    fn LocoSpd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct MultiSense(MTypeArg, ZasArg, SenseAddrArg);
+
+impl LocoNetMessage for MultiSense {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xD0 as u8, self.0.m_type(), self.1.zas(), self.2.addr1(), self.2.addr2()])
+    }
+}
+
+impl MultiSense {
+    pub fn new(m_type: MTypeArg, zas: ZasArg, sense_adr: SenseAddrArg) -> Self {
+        MultiSense(m_type, zas, sense_adr)
+    }
+    pub fn get_m_type(&self) -> MTypeArg { self.0 }
+    pub fn get_zas(&self) -> ZasArg { self.1 }
+    pub fn get_sense_adr(&self) -> SenseAddrArg { self.2 }
+}
+
+foreign_class!(class MultiSense {
+    self_type MultiSense;
+    constructor MultiSense::new(m_type: MTypeArg, zas: ZasArg, senseAdr: SenseAddrArg) -> MultiSense;
+    fn MultiSense::get_m_type(&self) -> MTypeArg; alias getMType;
+    fn MultiSense::get_zas(&self) -> ZasArg; alias getZas;
+    fn MultiSense::get_sense_adr(&self) -> SenseAddrArg; alias getSenseArg;
+    fn MultiSense::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct UhliFun(SlotArg, FunctionArg);
+
+impl LocoNetMessage for UhliFun {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xD4 as u8, 0x20 as u8, self.0.slot(), self.1.group(), self.1.function()])
+    }
+}
+
+impl UhliFun {
+    pub fn new(slot: SlotArg, function: FunctionArg) -> Self {
+        UhliFun(slot, function)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_function(&self) -> FunctionArg { self.1 }
+}
+
+foreign_class!(class UhliFun {
+    self_type UhliFun;
+    constructor UhliFun::new(slot: SlotArg, function: FunctionArg) -> UhliFun;
+    fn UhliFun::get_slot(&self) -> SlotArg; alias getSlot;
+    fn UhliFun::get_function(&self) -> FunctionArg; alias getFunction;
+    fn UhliFun::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct WrSlData(WrSlDataStructure);
+
+impl LocoNetMessage for WrSlData {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(self.0.to_message())
+    }
+}
+
+impl WrSlData {
+    pub fn new(slot_data: WrSlDataStructure) -> Self {
+        WrSlData(slot_data)
+    }
+    pub fn get_slot_data_structure(&self) -> WrSlDataStructure { self.0 }
+}
+
+foreign_class!(class WrSlData {
+    self_type WrSlData;
+    constructor WrSlData::new(slotData: WrSlDataStructure) -> WrSlData;
+    fn WrSlData::get_slot_data_structure(&self) -> WrSlDataStructure; alias getSlotDataStructure;
+    fn WrSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct SlRdData(SlotArg, Stat1Arg, AddressArg, SpeedArg, DirfArg, TrkArg, Stat2Arg, SndArg, IdArg);
+
+impl LocoNetMessage for SlRdData {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xE7 as u8, 0x0E as u8, self.0.slot(), self.1.stat1(), self.2.adr1(), self.3.spd(), self.4.dirf(), self.5.trk_arg(),
+                                  self.6.stat2(), self.2.adr2(), self.7.snd(), self.8.id1(), self.8.id2()])
+    }
+}
+
+impl SlRdData {
+    pub fn new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> Self {
+        SlRdData(slot, stat1, address, speed, dirf, trk, stat2, SndArg::parse(0), id)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_stat1(&self) -> Stat1Arg { self.1 }
+    pub fn get_address(&self) -> AddressArg { self.2 }
+    pub fn get_speed(&self) -> SpeedArg { self.3 }
+    pub fn get_dirf(&self) -> DirfArg { self.4 }
+    pub fn get_trk(&self) -> TrkArg { self.5 }
+    pub fn get_stat2(&self) -> Stat2Arg { self.6 }
+    pub fn get_snd(&self) -> SndArg { self.7 }
+    pub fn get_id(&self) -> IdArg { self.8 }
+}
+
+foreign_class!(class SlRdData {
+    self_type SlRdData;
+    constructor SlRdData::new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> SlRdData;
+    fn SlRdData::get_slot(&self) -> SlotArg; alias getSlot;
+    fn SlRdData::get_stat1(&self) -> Stat1Arg; alias getStat1;
+    fn SlRdData::get_address(&self) -> AddressArg; alias getAddress;
+    fn SlRdData::get_speed(&self) -> SpeedArg; alias getSpeed;
+    fn SlRdData::get_dirf(&self) -> DirfArg; alias getDirf;
+    fn SlRdData::get_trk(&self) -> TrkArg; alias getTrk;
+    fn SlRdData::get_stat2(&self) -> Stat2Arg; alias getStat2;
+    fn SlRdData::get_snd(&self) -> SndArg; alias getSnd;
+    fn SlRdData::get_id(&self) -> IdArg; alias getId;
+    fn SlRdData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct ImmPacket(ImArg);
+
+impl LocoNetMessage for ImmPacket {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xED as u8, 0x0B as u8, 0x7F as u8, self.0.reps(), self.0.dhi(), self.0.im1(), self.0.im2(), self.0.im3(), self.0.im4(), self.0.im5()])
+    }
+}
+
+impl ImmPacket {
+    pub fn new(im_arg: ImArg) -> Self {
+        ImmPacket(im_arg)
+    }
+    pub fn get_im_arg(&self) -> ImArg { self.0 }
+}
+
+foreign_class!(class ImmPacket {
+    self_type ImmPacket;
+    constructor ImmPacket::new(imArg: ImArg) -> ImmPacket;
+    fn ImmPacket::get_im_arg(&self) -> ImArg; alias getImArg;
+    fn ImmPacket::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct Rep(RepStructure);
+
+impl LocoNetMessage for Rep {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(match self.0 {
+            RepStructure::RFID7Report(report) => report.to_message(),
+            RepStructure::RFID5Report(report) => report.to_message(),
+            RepStructure::LissyIrReport(report) => report.to_message(),
+            RepStructure::WheelcntReport(report) => report.to_message(),
+        })
+    }
+}
+
+impl Rep {
+    pub fn new(rep: RepStructure) -> Self {
+        Rep(rep)
+    }
+    pub fn get_rep(&self) -> RepStructure { self.0 }
+}
+
+foreign_class!(class Rep {
+    self_type Rep;
+    constructor Rep::new(rep: RepStructure) -> Rep;
+    fn Rep::get_rep(&self) -> RepStructure; alias getRep;
+    fn Rep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+#[derive(Debug, Copy, Clone)]
+pub struct PeerXfer(SlotArg, DstArg, PxctData);
+
+impl LocoNetMessage for PeerXfer {
+    fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
+        loco_connector.write(vec![0xE5, 0x10, self.0.slot(), self.1.dst_low(), self.1.dst_high(), self.2.pxct1(), self.2.d1(), self.2.d2(), self.2.d3(), self.2.d4(), self.2.pxct2(), self.2.d5(), self.2.d6(), self.2.d7(), self.2.d8()])
+    }
+}
+
+impl PeerXfer {
+    pub fn new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> Self {
+        PeerXfer(slot, dst, pxct)
+    }
+    pub fn get_slot(&self) -> SlotArg { self.0 }
+    pub fn get_dst(&self) -> DstArg { self.1 }
+    pub fn get_pxct(&self) -> PxctData { self.2 }
+}
+
+foreign_class!(class PeerXfer {
+    self_type PeerXfer;
+    constructor PeerXfer::new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> PeerXfer;
+    fn PeerXfer::get_slot(&self) -> SlotArg; alias getSlot;
+    fn PeerXfer::get_dst(&self) -> DstArg; alias getDst;
+    fn PeerXfer::get_pxct(&self) -> PxctData; alias getPxct;
+    fn PeerXfer::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+});
+
+pub fn get_all_ports() -> Vec<String> {
+    serialport::available_ports().expect("No ports found").into_iter().map(|port_info| port_info.port_name).collect()
+}
+
+foreign_class!(class PortInfos {
+    fn get_all_ports() -> Vec<String>; alias getAllPorts;
+});
+
+#[repr(u8)]
+pub enum Message {
+    Idle(Idle),
+    GpOn(GpOn),
+    GpOff(GpOff),
+    Busy(Busy),
+
+    LocoAdr(LocoAdr),
+    SwAck(SwAck),
+    SwState(SwState),
+    RqSlData(RqSlData),
+    MoveSlots(MoveSlots),
+    LinkSlots(LinkSlots),
+    UnlinkSlots(UnlinkSlots),
+    ConsistFunc(ConsistFunc),
+    SlotStat1(SlotStat1),
+    LongAck(LongAck),
+    InputRep(InputRep),
+    SwRep(SwRep),
+    SwReq(SwReq),
+    LocoSnd(LocoSnd),
+    LocoDirf(LocoDirf),
+    LocoSpd(LocoSpd),
+    MultiSense(MultiSense),
+    UhliFun(UhliFun),
+    WrSlData(WrSlData),
+    SlRdData(SlRdData),
+    ImmPacket(ImmPacket),
+    Rep(Rep),
+    PeerXfer(PeerXfer),
+}
+
+impl Message {
+    pub fn get_message_type(&self) -> u8 {
+        match self {
+            Message::Idle(_) => 0,
+            Message::GpOn(_) => 1,
+            Message::GpOff(_) => 2,
+            Message::Busy(_) => 3,
+            Message::LocoAdr(_) => 4,
+            Message::SwAck(_) => 5,
+            Message::SwState(_) => 6,
+            Message::RqSlData(_) => 7,
+            Message::MoveSlots(_) => 8,
+            Message::LinkSlots(_) => 9,
+            Message::UnlinkSlots(_) => 10,
+            Message::ConsistFunc(_) => 11,
+            Message::SlotStat1(_) => 12,
+            Message::LongAck(_) => 13,
+            Message::InputRep(_) => 14,
+            Message::SwRep(_) => 15,
+            Message::SwReq(_) => 16,
+            Message::LocoSnd(_) => 17,
+            Message::LocoDirf(_) => 18,
+            Message::LocoSpd(_) => 19,
+            Message::MultiSense(_) => 20,
+            Message::UhliFun(_) => 21,
+            Message::WrSlData(_) => 22,
+            Message::SlRdData(_) => 23,
+            Message::ImmPacket(_) => 24,
+            Message::Rep(_) => 25,
+            Message::PeerXfer(_) => 26,
+        }
+    }
+
+    pub fn get_idle(&self) -> Idle {
+        match *self {
+            Message::Idle(idle) => idle,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_gp_on(&self) -> GpOn {
+        match *self {
+            Message::GpOn(gpon) => gpon,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_gp_off(&self) -> GpOff {
+        match *self {
+            Message::GpOff(gpoff) => gpoff,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_busy(&self) -> Busy {
+        match *self {
+            Message::Busy(busy) => busy,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_loco_adr(&self) -> LocoAdr {
+        match *self {
+            Message::LocoAdr(adr) => adr,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_sw_ack(&self) -> SwAck {
+        match *self {
+            Message::SwAck(sw_ack) => sw_ack,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_sw_state(&self) -> SwState {
+        match *self {
+            Message::SwState(sw_state) => sw_state,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_rq_sl_data(&self) -> RqSlData {
+        match *self {
+            Message::RqSlData(rq_sl_data) => rq_sl_data,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_move_slots(&self) -> MoveSlots {
+        match *self {
+            Message::MoveSlots(move_slots) => move_slots,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_link_slots(&self) -> LinkSlots {
+        match *self {
+            Message::LinkSlots(link_slots) => link_slots,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_unlink_slots(&self) -> UnlinkSlots {
+        match *self {
+            Message::UnlinkSlots(unlink_slots) => unlink_slots,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_consist_func(&self) -> ConsistFunc {
+        match *self {
+            Message::ConsistFunc(consist_func) => consist_func,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_slot_stat1(&self) -> SlotStat1 {
+        match *self {
+            Message::SlotStat1(slot_stat1) => slot_stat1,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_long_ack(&self) -> LongAck {
+        match *self {
+            Message::LongAck(long_ack) => long_ack,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_input_rep(&self) -> InputRep {
+        match *self {
+            Message::InputRep(input_rep) => input_rep,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_sw_rep(&self) -> SwRep {
+        match *self {
+            Message::SwRep(sw_rep) => sw_rep,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_sw_req(&self) -> SwReq {
+        match *self {
+            Message::SwReq(sw_req) => sw_req,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_loco_snd(&self) -> LocoSnd {
+        match *self {
+            Message::LocoSnd(loco_snd) => loco_snd,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_loco_dirf(&self) -> LocoDirf {
+        match *self {
+            Message::LocoDirf(loco_dirf) => loco_dirf,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_loco_spd(&self) -> LocoSpd {
+        match *self {
+            Message::LocoSpd(loco_spd) => loco_spd,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_multi_sense(&self) -> MultiSense {
+        match *self {
+            Message::MultiSense(multi_sense) => multi_sense,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_uhli_fun(&self) -> UhliFun {
+        match *self {
+            Message::UhliFun(uhli_fun) => uhli_fun,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_wr_sl_data(&self) -> WrSlData {
+        match *self {
+            Message::WrSlData(wr_sl_data) => wr_sl_data,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_sl_rd_data(&self) -> SlRdData {
+        match *self {
+            Message::SlRdData(sl_rd_data) => sl_rd_data,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_imm_packet(&self) -> ImmPacket {
+        match *self {
+            Message::ImmPacket(imm_packet) => imm_packet,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_rep(&self) -> Rep {
+        match *self {
+            Message::Rep(rep) => rep,
+            _ => { panic!("Could not load message") },
+        }
+    }
+
+    pub fn get_peer_xfer(&self) -> PeerXfer {
+        match *self {
+            Message::PeerXfer(peer_xfer) => peer_xfer,
+            _ => { panic!("Could not load message") },
+        }
+    }
+}
+
+foreign_class!(class Message {
+    self_type Message;
+    private constructor = empty;
+    fn Message::get_message_type(&self) -> u8; alias getMessageType;
+    fn Message::get_idle(&self) -> Idle; alias getIdle;
+    fn Message::get_gp_on(&self) -> GpOn; alias getGpOn;
+    fn Message::get_gp_off(&self) -> GpOff; alias getGpOff;
+    fn Message::get_busy(&self) -> Busy; alias getBusy;
+    fn Message::get_loco_adr(&self) -> LocoAdr; alias getLocoAdr;
+    fn Message::get_sw_ack(&self) -> SwAck; alias getSwAck;
+    fn Message::get_sw_state(&self) -> SwState; alias getSwState;
+    fn Message::get_rq_sl_data(&self) -> RqSlData; alias getRqSlData;
+    fn Message::get_move_slots(&self) -> MoveSlots; alias getMoveSlots;
+    fn Message::get_link_slots(&self) -> LinkSlots; alias getLinkSlots;
+    fn Message::get_unlink_slots(&self) -> UnlinkSlots; alias getUnlinkSlots;
+    fn Message::get_consist_func(&self) -> ConsistFunc; alias getConsistFunc;
+    fn Message::get_slot_stat1(&self) -> SlotStat1; alias getSlotStat1;
+    fn Message::get_long_ack(&self) -> LongAck; alias getLongAck;
+    fn Message::get_input_rep(&self) -> InputRep; alias getInputRep;
+    fn Message::get_sw_rep(&self) -> SwRep; alias getSwRep;
+    fn Message::get_sw_req(&self) -> SwReq; alias getSwReq;
+    fn Message::get_loco_snd(&self) -> LocoSnd; alias getLocoSnd;
+    fn Message::get_loco_dirf(&self) -> LocoDirf; alias getLocoDirf;
+    fn Message::get_loco_spd(&self) -> LocoSpd; alias getLocoSpd;
+    fn Message::get_multi_sense(&self) -> MultiSense; alias getMultiSense;
+    fn Message::get_uhli_fun(&self) -> UhliFun; alias getUhliFun;
+    fn Message::get_wr_sl_data(&self) -> WrSlData; alias getWrSlData;
+    fn Message::get_sl_rd_data(&self) -> SlRdData; alias getSlRdData;
+    fn Message::get_imm_packet(&self) -> ImmPacket; alias getImmPacket;
+    fn Message::get_rep(&self) -> Rep; alias getRep;
+    fn Message::get_peer_xfer(&self) -> PeerXfer; alias getPeerXfer;
+});
+
+pub trait ExceptionObserver {
+    fn on_exception_occurred(&self, error: MessageParseError);
+}
+
+pub trait LocoNetMessageObserver {
+    fn on_message_occurred(&self, message: Message);
+}
+
+foreign_callback!(callback LocoNetMessageObserver {
+    self_type LocoNetMessageObserver;
+    onMessageOccurred = LocoNetMessageObserver::on_message_occurred(&self, message: Message);
+});
+
+foreign_callback!(callback ExceptionObserver {
+    self_type ExceptionObserver;
+    onExceptionOccurred = ExceptionObserver::on_exception_occurred(&self, message: MessageParseError);
+});
+
+pub struct LocoNetConnector {
+    port: Box<dyn SerialPort>,
+    message_observer: Box<dyn LocoNetMessageObserver>,
+    error_handler: Box<dyn ExceptionObserver>
+}
+
+impl LocoNetConnector {
+    pub fn new(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
+        let port = serialport::new(port_name, 115_200)
+            .data_bits(DataBits::Eight)
+            .stop_bits(StopBits::Two)
+            .parity(Parity::None)
+            .flow_control(FlowControl::Software)
+            .timeout(Duration::from_secs(100))
+            .open();
+
+        return if port.is_err() {
+            Err("Could not open port: ".to_owned() + port_name)
+        } else {
+            Ok(LocoNetConnector {
+                port: port.unwrap(),
+                message_observer,
+                error_handler
+            })
+        }
+    }
+
+    pub fn get_port_name(&self) -> String {
+        self.port.name().unwrap_or(String::from("-"))
+    }
+
+    pub fn start_reader(&mut self) {
+        loop {
+            self.read();
+        }
+    }
+
+    pub fn read(&mut self) {
+        let parsed = self.parse();
+        if let Err(err) = parsed {
+            self.error_handler.on_exception_occurred(err);
+        } else {
+            self.message_observer.on_message_occurred(parsed.unwrap());
+        }
+    }
+
+    /// Reads and Parses the next message from `stream`.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if the message could not be parsed:
+    ///
+    /// * [`UnknownOpcode`] if the message has an unknown opcode
+    /// * [`UnexpectedEnd`] if `stream` unexpectedly yields [`None`]
+    /// * [`InvalidChecksum`] if the checksum is invalid
+    ///
+    /// [`UnknownOpcode`]: MessageParseError::UnknownOpcode
+    /// [`UnexpectedEnd`]: MessageParseError::UnexpectedEnd
+    /// [`InvalidChecksum`]: MessageParseError::InvalidChecksum
+    pub fn parse(&mut self) -> Result<Message, MessageParseError> {
+        let mut buf = vec![0u8; 1];
+        if let Err(error) = self.port.read_exact(&mut buf) {
+            return Err(MessageParseError::IoError(error));
+        }
+
+        let opc = buf[0];
+
+        let len = match opc & 0xE0 {
+            0x80 => 2,
+            0xA0 => 4,
+            0xC0 => 6,
+            0xE0 => {
+                let mut byte1 = [0u8; 1];
+                if let Err(error) = self.port.read_exact(&mut byte1) {
+                    return Err(MessageParseError::IoError(error));
+                }
+                buf.push(byte1[0]);
+                byte1[0] as usize - 1
+            }
+            _ => return Err(MessageParseError::UnknownOpcode(opc)),
+        };
+
+        let mut message = vec![0u8; len - 1];
+
+        if let Err(error) = self.port.read_exact(&mut message) {
+            return Err(MessageParseError::IoError(error));
+        }
+
+        buf.append(&mut message);
+
+        // validate checksum
+        if !Self::validate(&buf) {
+            return Err(MessageParseError::InvalidChecksum);
+        }
+
+        // call appropriate parse function
+        match len {
+            2 => Self::parse2(opc),
+            4 => Self::parse4(opc, &buf[1..3]),
+            6 => Self::parse6(opc, &buf[1..5]),
+            var => Self::parse_var(opc, &buf[1..var]),
+        }
+    }
+
+    fn parse2(opc: u8) -> Result<Message, MessageParseError> {
+        match opc {
+            0x85 => Ok(Message::Idle(Idle())),
+            0x83 => Ok(Message::GpOn(GpOn())),
+            0x82 => Ok(Message::GpOff(GpOff())),
+            0x81 => Ok(Message::Busy(Busy())),
+            _ => Err(MessageParseError::UnknownOpcode(opc)),
+        }
+    }
+
+    fn parse4(opc: u8, args: &[u8]) -> Result<Message, MessageParseError> {
+        if args.len() != 2 {
+            return Err(MessageParseError::UnexpectedEnd);
+        }
+        match opc {
+            0xBF => Ok(Message::LocoAdr(LocoAdr(AddressArg::parse(args[0], args[1])))),
+            0xBD => Ok(Message::SwAck(SwAck(SwitchArg::parse(args[0], args[1])))),
+            0xBC => Ok(Message::SwState(SwState(SwitchArg::parse(args[0], args[1])))),
+            0xBB => Ok(Message::RqSlData(RqSlData(SlotArg::parse(args[0])))),
+            0xBA => Ok(Message::MoveSlots(MoveSlots(
+                SlotArg::parse(args[0]),
+                SlotArg::parse(args[1]),
+            ))),
+            0xB9 => Ok(Message::LinkSlots(LinkSlots(
+                SlotArg::parse(args[0]),
+                SlotArg::parse(args[1]),
+            ))),
+            0xB8 => Ok(Message::UnlinkSlots(UnlinkSlots(
+                SlotArg::parse(args[0]),
+                SlotArg::parse(args[1]),
+            ))),
+            0xB6 => Ok(Message::ConsistFunc(ConsistFunc(
+                SlotArg::parse(args[0]),
+                DirfArg::parse(args[1]),
+            ))),
+            0xB5 => Ok(Message::SlotStat1(SlotStat1(
+                SlotArg::parse(args[0]),
+                Stat1Arg::parse(args[1]),
+            ))),
+            0xB4 => Ok(Message::LongAck(LongAck(
+                LopcArg::parse(args[0]),
+                Ack1Arg::parse(args[1]),
+            ))),
+            0xB2 => Ok(Message::InputRep(InputRep(InArg::parse(args[0], args[1])))),
+            0xB1 => Ok(Message::SwRep(SwRep(SnArg::parse(args[0], args[1])))),
+            0xB0 => Ok(Message::SwReq(SwReq(SwitchArg::parse(args[0], args[1])))),
+            0xA2 => Ok(Message::LocoSnd(LocoSnd(
+                SlotArg::parse(args[0]),
+                SndArg::parse(args[1]),
+            ))),
+            0xA1 => Ok(Message::LocoDirf(LocoDirf(
+                SlotArg::parse(args[0]),
+                DirfArg::parse(args[1]),
+            ))),
+            0xA0 => Ok(Message::LocoSpd(LocoSpd(
+                SlotArg::parse(args[0]),
+                SpeedArg::parse(args[1]),
+            ))),
+            _ => Err(MessageParseError::UnknownOpcode(opc)),
+        }
+    }
+
+    fn parse6(opc: u8, args: &[u8]) -> Result<Message, MessageParseError> {
+        if args.len() != 4 {
+            return Err(MessageParseError::UnexpectedEnd);
+        }
+        match opc {
+            0xD0 => Ok(Message::MultiSense(MultiSense(
+                MTypeArg::parse(args[0]),
+                ZasArg::parse(args[1]),
+                SenseAddrArg::parse(args[2], args[3]),
+            ))),
+            0xD4 => {
+                assert_eq!(0x20, args[0], "Value of arg0 can only be {:?}", 0x20);
+                Ok(Message::UhliFun(UhliFun(
+                    SlotArg::parse(args[1]),
+                    FunctionArg::parse(args[2], args[3]),
+                )))
+            }
+            _ => Err(MessageParseError::UnknownOpcode(opc)),
+        }
+    }
+
+    #[allow(unused_variables)] // TODO: remove allowance when parse_var is implemented
+    fn parse_var(opc: u8, args: &[u8]) -> Result<Message, MessageParseError> {
+        if args.len() as u8 + 2 == args[0] {
+            return Err(MessageParseError::UnexpectedEnd);
+        }
+        match opc {
+            0xE7 => Ok(Message::SlRdData(SlRdData(
+                SlotArg::parse(args[1]),
+                Stat1Arg::parse(args[2]),
+                AddressArg::parse(args[8], args[3]),
+                SpeedArg::parse(args[4]),
+                DirfArg::parse(args[5]),
+                TrkArg::parse(args[6]),
+                Stat2Arg::parse(args[7]),
+                SndArg::parse(args[9]),
+                IdArg::parse(args[10], args[11]),
+            ))),
+            0xED => Ok(Message::ImmPacket(ImmPacket(
+                ImArg::parse(args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8])
+            ))),
+            0xEF => Ok(Message::WrSlData(WrSlData(
+                WrSlDataStructure::parse(args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11])
+            ))),
+            0xE4 => Ok(Message::Rep(Rep(RepStructure::parse(args[0], &args[1..])))),
+            0xE5 => Ok(Message::PeerXfer(PeerXfer(SlotArg::parse(args[1]), DstArg::parse(args[2], args[3]), PxctData::parse(args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11], args[12], args[13])))),
+            _ => Err(MessageParseError::UnknownOpcode(opc)),
+        }
+    }
+
+    fn validate(msg: &[u8]) -> bool {
+        return msg.iter().fold(0, |acc, &b| acc ^ b) == 0xFF;
+    }
+
+    pub fn write(&mut self, message: Vec<u8>) -> bool {
+        println!("Try sending");
+        let i = match self.port.write_all(&Self::to_message(message)) {
+            Ok(_) => true,
+            Err(_) => false,
+        };
+        println!("Send {}", i);
+        i
+    }
+
+    pub fn to_message(mut bytes: Vec<u8>) -> Vec<u8> {
+        bytes.push(Self::check_sum(&bytes));
+
+        bytes
+    }
+
+    fn check_sum(msg: &[u8]) -> u8 {
+        0xFF - msg.iter().fold(0, |acc, &b| acc ^ b)
+    }
+}
+
+foreign_class!(class LocoNetConnector {
+    self_type LocoNetConnector;
+    constructor LocoNetConnector::new(portName: &str, messageObserver: Box<dyn LocoNetMessageObserver>, errorHandler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
+    fn LocoNetConnector::start_reader(&mut self); alias startReader;
+    fn LocoNetConnector::get_port_name(&self) -> String; alias getPortName;
+});
+
