@@ -1,0 +1,15 @@
+# Ignore target file
+target
+
+# Ignore IntelliJ files
+.idea
+
+# Ignore cargo cache directory
+Cargo.lock
+
+# Ignore Gradle project-specific cache directory
+.gradle
+gradle
+
+# Ignore Gradle build output directory
+build
