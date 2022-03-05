@@ -2,12 +2,12 @@ package de.noisruker.locodrive.control;
 
 import de.noisruker.event.EventManager;
 import de.noisruker.locodrive.args.*;
-import de.noisruker.threading.ThreadManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.logging.Level;
 import static de.noisruker.logger.Logger.LOGGER;
+import static de.noisruker.locodrive.control.LocoNetEvent.*;
 
 public class LocoNetHandler {
 
@@ -76,34 +76,34 @@ public class LocoNetHandler {
 
     private void read(Message message) {
         LOGGER.info("Trigger Event?");
-        EventManager.getInstance().triggerEvent(new LocoNetEvent<>(switch (message.getMessageType()) {
-            case 0 -> message.getIdle();
-            case 1 -> message.getGpOn();
-            case 2 -> message.getGpOff();
-            case 3 -> message.getBusy();
-            case 4 -> message.getLocoAdr();
-            case 5 -> message.getSwAck();
-            case 6 -> message.getSwState();
-            case 7 -> message.getRqSlData();
-            case 8 -> message.getMoveSlots();
-            case 9 -> message.getLinkSlots();
-            case 10 -> message.getUnlinkSlots();
-            case 11 -> message.getConsistFunc();
-            case 12 -> message.getSlotStat1();
-            case 13 -> message.getLongAck();
-            case 14 -> message.getInputRep();
-            case 15 -> message.getSwRep();
-            case 16 -> message.getSwReq();
-            case 17 -> message.getLocoSnd();
-            case 18 -> message.getLocoDirf();
-            case 19 -> message.getLocoSpd();
-            case 20 -> message.getMultiSense();
-            case 21 -> message.getUhliFun();
-            case 22 -> message.getWrSlData();
-            case 23 -> message.getSlRdData();
-            case 24 -> message.getImmPacket();
-            case 25 -> message.getRep();
-            case 26 -> message.getPeerXfer();
+        EventManager.getInstance().triggerEvent((switch (message.getMessageType()) {
+            case 0 -> new IdleEvent(message.getIdle());
+            case 1 -> new GpOnEvent(message.getGpOn());
+            case 2 -> new GpOffEvent(message.getGpOff());
+            case 3 -> new BusyEvent(message.getBusy());
+            case 4 -> new LocoAdrEvent(message.getLocoAdr());
+            case 5 -> new SwAckEvent(message.getSwAck());
+            case 6 -> new SwStateEvent(message.getSwState());
+            case 7 -> new RqSlDataEvent(message.getRqSlData());
+            case 8 -> new MoveSlotsEvent(message.getMoveSlots());
+            case 9 -> new LinkSlotsEvent(message.getLinkSlots());
+            case 10 -> new UnlinkSlotsEvent(message.getUnlinkSlots());
+            case 11 -> new ConsistFuncEvent(message.getConsistFunc());
+            case 12 -> new SlotStat1Event(message.getSlotStat1());
+            case 13 -> new LongAckEvent(message.getLongAck());
+            case 14 -> new InputRepEvent(message.getInputRep());
+            case 15 -> new SwRepEvent(message.getSwRep());
+            case 16 -> new SwReqEvent(message.getSwReq());
+            case 17 -> new LocoSndEvent(message.getLocoSnd());
+            case 18 -> new LocoDirfEvent(message.getLocoDirf());
+            case 19 -> new LocoSpdEvent(message.getLocoSpd());
+            case 20 -> new MultiSenseEvent(message.getMultiSense());
+            case 21 -> new UhliFunEvent(message.getUhliFun());
+            case 22 -> new WrSlDataEvent(message.getWrSlData());
+            case 23 -> new SlRdDataEvent(message.getSlRdData());
+            case 24 -> new ImmPacketEvent(message.getImmPacket());
+            case 25 -> new RepEvent(message.getRep());
+            case 26 -> new PeerXferEvent(message.getPeerXfer());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
         }));
     }
