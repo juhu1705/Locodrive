@@ -3,6 +3,7 @@ use std::{
     env,
     path::{Path, PathBuf},
 };
+extern crate dirs;
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -32,7 +33,7 @@ fn main() {
 }
 
 fn gen_jni_bindings(jni_c_headers_rs: &Path) {
-    let java_home = "C:\\Users\\Fabiu\\.jdks\\openjdk-17.0.1";
+    let java_home = dirs::home_dir().unwrap().join(".jdks").join("openjdk-17.0.2");
 
     let java_include_dir = Path::new(&java_home).join("include");
 
