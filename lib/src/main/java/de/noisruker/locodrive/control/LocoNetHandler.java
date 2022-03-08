@@ -4,6 +4,7 @@ import de.noisruker.event.EventManager;
 import de.noisruker.locodrive.args.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.channels.AlreadyConnectedException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import static de.noisruker.logger.Logger.LOGGER;
@@ -36,25 +37,15 @@ public class LocoNetHandler {
     }
 
     private LocoNetConnector connector = null;
-    private final Thread workingThread;
 
     private LocoNetHandler() {
-        this.workingThread = new Thread(() -> {
-            try {
-                LOGGER.info("Reader thread started");
-                this.connector.startReader();
-            } catch (Exception e) {
-                LOGGER.info("Reader thread stopped");
-            }
-            LOGGER.info("Reader thread stopped");
-        });
 
     }
 
     public void connectTo(@NotNull String serialPort) throws Exception {
         if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
-        this.connector = new LocoNetConnector(serialPort, this::read, this::handleError);
+        this.connector = new LocoNetConnector(serialPort, this::read, this::handleLack, this::handleError);
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
@@ -64,14 +55,18 @@ public class LocoNetHandler {
 
     public void stop() {
         LOGGER.info("Try interrupting reader");
-        this.workingThread.interrupt();
+        this.connector.stopReader();
     }
 
     public void startReader() throws IllegalStateException {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
-        else if(!workingThread.isAlive())
-            workingThread.start();
+        if(!this.connector.startReader())
+            throw new AlreadyConnectedException();
+    }
+
+    private void handleLack(LongAck ack, Message message) {
+        // TODO: Implement event trigger!
     }
 
     private void read(Message message) {

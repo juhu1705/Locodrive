@@ -13,6 +13,7 @@ name = "locodrive"
 [dependencies]
 log = "^0.4.6"
 serialport = "4.0.1"
+condvar = "0.1.1"
 
 [build-dependencies]
 dirs = "4.0.0"
