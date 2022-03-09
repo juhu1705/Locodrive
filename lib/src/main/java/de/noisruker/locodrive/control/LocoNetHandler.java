@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import static de.noisruker.logger.Logger.LOGGER;
 import static de.noisruker.locodrive.control.LocoNetEvent.*;
+import static de.noisruker.locodrive.control.LocoRespondEvent.*;
 
 public class LocoNetHandler {
 
@@ -66,12 +67,19 @@ public class LocoNetHandler {
     }
 
     private void handleLack(LongAck ack, Message message) {
-        // TODO: Implement event trigger!
+        EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
+            case 4 -> new LocoAdrErrorResponseEvent(ack, message.getLocoAdr());
+            case 5 -> new SwAckResponseEvent(ack, message.getSwAck());
+            case 6 -> new SwStateResponseEvent(ack, message.getSwState());
+            case 16 -> new SwReqResponseEvent(ack, message.getSwReq());
+            case 22 -> new WrSlResponseEvent(ack, message.getWrSlData());
+            case 24 -> new ImmResponseEvent(ack, message.getImmPacket());
+            default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
+        }), this::send);
     }
 
     private void read(Message message) {
-        LOGGER.info("Trigger Event?");
-        EventManager.getInstance().triggerEvent((switch (message.getMessageType()) {
+        EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
             case 0 -> new IdleEvent(message.getIdle());
             case 1 -> new GpOnEvent(message.getGpOn());
             case 2 -> new GpOffEvent(message.getGpOff());
@@ -100,7 +108,7 @@ public class LocoNetHandler {
             case 25 -> new RepEvent(message.getRep());
             case 26 -> new PeerXferEvent(message.getPeerXfer());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
-        }));
+        }), this::send);
     }
 
     public void handleError(MessageParseError error) {
@@ -110,7 +118,7 @@ public class LocoNetHandler {
     }
 
     public synchronized boolean send(@NotNull ILocoNetMessage message) {
-        LOGGER.info("Connect sending");
+        LOGGER.info("Sending new message to LocoNet: " + message);
         return message.send(this.connector);
     }
 
