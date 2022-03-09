@@ -1,6 +1,12 @@
 use crate::jni_c_header::*;
 use std::fmt::{Debug, Formatter, Display};
 use std::time::Duration;
+use std::sync::{Arc, Mutex, Condvar};
+
+use std::thread;
+use std::thread::JoinHandle;
+
+use std::mem;
 
 use std::io::prelude::*;
 use std::io;
@@ -18,7 +24,8 @@ pub enum MessageParseError {
     UnknownOpcode(u8),
     UnexpectedEnd,
     InvalidChecksum,
-    IoError(io::Error)
+    IoError(io::Error),
+    Update(io::Error)
 }
 
 impl Display for MessageParseError {
@@ -27,7 +34,8 @@ impl Display for MessageParseError {
             Self::UnknownOpcode(opc) => write!(f, "unknown opcode: {:x}", opc),
             Self::UnexpectedEnd => write!(f, "unexpected end of stream"),
             Self::InvalidChecksum => write!(f, "invalid checksum"),
-            Self::IoError(err) => write!(f, "IO Error: {}", err),
+            Self::IoError(err) => write!(f, "io error: {}", err),
+            Self::Update(err) => write!(f, "io error: {}", err),
         }
     }
 }
@@ -42,6 +50,7 @@ impl MessageParseError {
             Self::UnexpectedEnd => write!(&mut f, "unexpected end of stream").unwrap_or(()),
             Self::InvalidChecksum => write!(&mut f, "invalid checksum").unwrap_or(()),
             Self::IoError(err) => write!(&mut f, "io error: {}", err).unwrap_or(()),
+            Self::Update(err) => write!(&mut f, "io error: {}", err).unwrap_or(()),
         };
         f
     }
@@ -2487,14 +2496,12 @@ pub struct GpOn();
 
 impl LocoNetMessage for GpOn {
     fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
-        println!("Rust calls sending");
         loco_connector.write(vec![0x83 as u8])
     }
 }
 
 impl GpOn {
     pub fn new() -> Self {
-        println!("Rust creates gpon!");
         GpOn()
     }
 }
@@ -3127,6 +3134,7 @@ foreign_class!(class PortInfos {
 });
 
 #[repr(u8)]
+#[derive(Debug, Copy, Clone)]
 pub enum Message {
     Idle(Idle),
     GpOn(GpOn),
@@ -3188,6 +3196,18 @@ impl Message {
             Message::ImmPacket(_) => 24,
             Message::Rep(_) => 25,
             Message::PeerXfer(_) => 26,
+        }
+    }
+
+    pub fn lack_follows(&self) -> bool {
+        match self {
+            Message::LocoAdr(_) => true,
+            Message::SwAck(_) => true,
+            Message::SwState(_) => true,
+            Message::SwReq(_) => true,
+            Message::WrSlData(_) => true,
+            Message::ImmPacket(_) => true,
+            _ => false
         }
     }
 
@@ -3414,12 +3434,16 @@ foreign_class!(class Message {
     fn Message::get_peer_xfer(&self) -> PeerXfer; alias getPeerXfer;
 });
 
-pub trait ExceptionObserver {
+pub trait ExceptionObserver: Send {
     fn on_exception_occurred(&self, error: MessageParseError);
 }
 
-pub trait LocoNetMessageObserver {
+pub trait LocoNetMessageObserver: Send {
     fn on_message_occurred(&self, message: Message);
+}
+
+pub trait LackMessageObserver: Send {
+    fn on_lack_occurred(&self, lack: LongAck, message: Message);
 }
 
 foreign_callback!(callback LocoNetMessageObserver {
@@ -3432,20 +3456,31 @@ foreign_callback!(callback ExceptionObserver {
     onExceptionOccurred = ExceptionObserver::on_exception_occurred(&self, message: MessageParseError);
 });
 
+foreign_callback!(callback LackMessageObserver {
+    self_type LackMessageObserver;
+    onLackOccurred = LackMessageObserver::on_lack_occurred(&self, lack: LongAck, message: Message);
+});
+
 pub struct LocoNetConnector {
     port: Box<dyn SerialPort>,
     message_observer: Box<dyn LocoNetMessageObserver>,
-    error_handler: Box<dyn ExceptionObserver>
+    lack_observer: Box<dyn LackMessageObserver>,
+    error_handler: Box<dyn ExceptionObserver>,
+    lack: bool,
+    last_message: Message,
+    send: Arc<(Mutex<Vec<u8>>, Condvar)>,
+    stop: Mutex<bool>,
+    reading_thread: Option<JoinHandle<()>>
 }
 
 impl LocoNetConnector {
-    pub fn new(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
+    pub fn new(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
         let port = serialport::new(port_name, 115_200)
             .data_bits(DataBits::Eight)
             .stop_bits(StopBits::Two)
             .parity(Parity::None)
             .flow_control(FlowControl::Software)
-            .timeout(Duration::from_secs(100))
+            .timeout(Duration::from_secs(500))
             .open();
 
         return if port.is_err() {
@@ -3454,7 +3489,13 @@ impl LocoNetConnector {
             Ok(LocoNetConnector {
                 port: port.unwrap(),
                 message_observer,
-                error_handler
+                lack_observer,
+                error_handler,
+                lack: false,
+                last_message: Message::Busy(Busy()),
+                send: Arc::new((Mutex::new(vec![0u8; 0]), Condvar::new())),
+                stop: Mutex::new(false),
+                reading_thread: None,
             })
         }
     }
@@ -3463,18 +3504,57 @@ impl LocoNetConnector {
         self.port.name().unwrap_or(String::from("-"))
     }
 
-    pub fn start_reader(&mut self) {
-        loop {
-            self.read();
+    pub fn start_reader(&'static mut self) -> bool {
+        let s = Arc::new(Mutex::new(self));
+        let new_s = Arc::clone(&s);
+        let mut save_to = (&*s).lock().unwrap();
+        if save_to.reading_thread.is_none() {
+            save_to.reading_thread = Some(thread::spawn(move|| {
+                let mut save_inner = (&*new_s).lock().unwrap();
+                *save_inner.stop.lock().unwrap() = false;
+                while !*save_inner.stop.lock().unwrap() {
+                    save_inner.read();
+                }
+            }));
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn stop_reader(&mut self) {
+        if self.reading_thread.is_some() {
+            *self.stop.lock().unwrap() = true;
+            mem::replace(&mut self.reading_thread, None).take().unwrap().join().unwrap();
         }
     }
 
     pub fn read(&mut self) {
         let parsed = self.parse();
         if let Err(err) = parsed {
-            self.error_handler.on_exception_occurred(err);
+            if let MessageParseError::Update(_io) = err {
+
+            } else {
+                self.error_handler.on_exception_occurred(err);
+                self.lack = false;
+            }
         } else {
-            self.message_observer.on_message_occurred(parsed.unwrap());
+            let message: Message = parsed.unwrap();
+
+            if self.lack {
+                if let Message::LongAck(m) = message {
+                    self.lack_observer.on_lack_occurred(m, self.last_message);
+                }
+            }
+
+            if message.lack_follows() {
+                self.lack = true;
+                self.last_message = message;
+            } else {
+                self.lack = false;
+            }
+
+            self.message_observer.on_message_occurred(message);
         }
     }
 
@@ -3494,7 +3574,7 @@ impl LocoNetConnector {
     pub fn parse(&mut self) -> Result<Message, MessageParseError> {
         let mut buf = vec![0u8; 1];
         if let Err(error) = self.port.read_exact(&mut buf) {
-            return Err(MessageParseError::IoError(error));
+            return Err(MessageParseError::Update(error));
         }
 
         let opc = buf[0];
@@ -3525,6 +3605,17 @@ impl LocoNetConnector {
         // validate checksum
         if !Self::validate(&buf) {
             return Err(MessageParseError::InvalidChecksum);
+        }
+
+        // Check for receiving last send message
+
+        let (lock, cvar) = &*self.send;
+
+        let mut last_send = lock.lock().unwrap();
+
+        if !(*last_send).is_empty() && (*last_send) == buf {
+            *last_send = vec![0u8; 0];
+            cvar.notify_one();
         }
 
         // call appropriate parse function
@@ -3619,7 +3710,6 @@ impl LocoNetConnector {
         }
     }
 
-    #[allow(unused_variables)] // TODO: remove allowance when parse_var is implemented
     fn parse_var(opc: u8, args: &[u8]) -> Result<Message, MessageParseError> {
         if args.len() as u8 + 2 == args[0] {
             return Err(MessageParseError::UnexpectedEnd);
@@ -3653,13 +3743,40 @@ impl LocoNetConnector {
     }
 
     pub fn write(&mut self, message: Vec<u8>) -> bool {
-        println!("Try sending");
-        let i = match self.port.write_all(&Self::to_message(message)) {
+        if self.reading_thread.is_none() {
+            self.error_handler.on_exception_occurred(
+                MessageParseError::IoError(
+                    std::io::Error::new(
+                        std::io::ErrorKind::TimedOut, "Reader not started! Please start the reader before sending messages."
+                    )));
+            return false;
+        }
+
+        let bytes = Self::to_message(message);
+
+        let (lock, cvar) = &*self.send;
+
+        if !(*lock.lock().unwrap()).is_empty() {
+            let result = cvar.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(500), |pending| !(*pending).is_empty()).unwrap();
+
+            if result.1.timed_out() {
+                self.error_handler.on_exception_occurred(
+                    MessageParseError::IoError(
+                        std::io::Error::new(
+                            std::io::ErrorKind::TimedOut, "Connection timed out! Please check your connected device."
+                        )));
+                return false;
+            }
+        }
+
+        let mut send = lock.lock().unwrap();
+
+        *send = bytes;
+
+        match self.port.write_all(&*send) {
             Ok(_) => true,
             Err(_) => false,
-        };
-        println!("Send {}", i);
-        i
+        }
     }
 
     pub fn to_message(mut bytes: Vec<u8>) -> Vec<u8> {
@@ -3675,8 +3792,9 @@ impl LocoNetConnector {
 
 foreign_class!(class LocoNetConnector {
     self_type LocoNetConnector;
-    constructor LocoNetConnector::new(portName: &str, messageObserver: Box<dyn LocoNetMessageObserver>, errorHandler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
-    fn LocoNetConnector::start_reader(&mut self); alias startReader;
+    constructor LocoNetConnector::new(portName: &str, messageObserver: Box<dyn LocoNetMessageObserver>, lackObserver: Box<dyn LackMessageObserver>, errorHandler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
+    fn LocoNetConnector::start_reader(&mut self) -> bool; alias startReader;
+    fn LocoNetConnector::stop_reader(&mut self); alias stopReader;
     fn LocoNetConnector::get_port_name(&self) -> String; alias getPortName;
 });
 

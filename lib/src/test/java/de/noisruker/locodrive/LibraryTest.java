@@ -24,22 +24,30 @@ public class LibraryTest {
     @Test public void someLibraryMethodReturnsTrue() throws Exception {
         System.out.println("Test start");
 
+        LocoNetHandler.getInstance();
+
+        EventManager.getInstance().registerEventListener(LocoNetEvent.LocoSpdEvent.class, event -> Logger.LOGGER.info("Test"));
+        EventManager.getInstance().registerEventListener(LocoNetEvent.GpOnEvent.class, event -> Logger.LOGGER.info("TUST"));
+        EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info("2"));
+
+        EventManager.getInstance().triggerEvent(new LocoNetEvent<>(new LocoSpd(new SlotArg((short)7),0)));
+        EventManager.getInstance().triggerEvent(new LocoNetEvent<>(new GpOn()));
+        EventManager.getInstance().triggerEvent(new LocoNetEvent.GpOnEvent(new GpOn()));
+
         for(String port: LocoNetHandler.getInstance().getPortInfos()) {
             System.out.println(port);
         }
 
         LocoNetHandler.getInstance().connectTo(LocoNetHandler.getInstance().getPortInfos()[0]);
 
-        EventManager.getInstance().registerEventListener(LocoNetEvent.LocoSpdEvent.class, event -> Logger.LOGGER.info("Test"));
-        EventManager.getInstance().registerEventListener(LocoNetEvent.GpOnEvent.class, event -> Logger.LOGGER.info("TUST"));
-        EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info("2"));
+
 
         AddressArg address = new AddressArg(16);
         assertEquals("AddressArg", 16, address.address());
 
         LocoNetHandler.getInstance().startReader();
 
-        LocoNetHandler.getInstance().send(new GpOn());
+        LocoNetHandler.getInstance().send(new GpOff());
 
         Thread.sleep(100);
 
@@ -53,11 +61,11 @@ public class LibraryTest {
 
         LocoNetHandler.getInstance().stop();
 
-        Thread.sleep(100);
+        Thread.sleep(2000);
 
         LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0));
 
-        LocoNetHandler.getInstance().send(new GpOn());
+        LocoNetHandler.getInstance().send(new GpOff());
 
         System.out.println("Handle stopped");
     }
