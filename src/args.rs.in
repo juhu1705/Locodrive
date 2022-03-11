@@ -3480,7 +3480,7 @@ impl LocoNetConnector {
             .stop_bits(StopBits::Two)
             .parity(Parity::None)
             .flow_control(FlowControl::Software)
-            .timeout(Duration::from_secs(500))
+            .timeout(Duration::from_secs(5))
             .open();
 
         return if port.is_err() {

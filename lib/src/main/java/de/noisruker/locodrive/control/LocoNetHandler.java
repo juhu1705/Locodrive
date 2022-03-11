@@ -20,7 +20,7 @@ public class LocoNetHandler {
             if(OS.contains("win"))
                 NativeUtils.loadLibraryFromJar("/locodrive.dll");
             else if(OS.contains("nix") || OS.contains("nux") || OS.contains("aix"))
-                NativeUtils.loadLibraryFromJar("/locodrive.so");
+                NativeUtils.loadLibraryFromJar("/liblocodrive.so");
             else if(OS.contains("mac"))
                 NativeUtils.loadLibraryFromJar("/locodrive.dylib");
             else
