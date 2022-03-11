@@ -54,7 +54,10 @@ public class LocoNetHandler {
         return PortInfos.getAllPorts();
     }
 
-    public void stop() {
+    public void stop() throws IllegalStateException {
+        if(this.connector == null)
+            throw new IllegalStateException("No port is configured");
+
         LOGGER.info("Try interrupting reader");
         this.connector.stopReader();
     }
@@ -75,7 +78,7 @@ public class LocoNetHandler {
             case 22 -> new WrSlResponseEvent(ack, message.getWrSlData());
             case 24 -> new ImmResponseEvent(ack, message.getImmPacket());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
-        }), this::send);
+        }), this::sendResponse);
     }
 
     private void read(Message message) {
@@ -108,7 +111,7 @@ public class LocoNetHandler {
             case 25 -> new RepEvent(message.getRep());
             case 26 -> new PeerXferEvent(message.getPeerXfer());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
-        }), this::send);
+        }), this::sendResponse);
     }
 
     public void handleError(MessageParseError error) {
@@ -117,7 +120,23 @@ public class LocoNetHandler {
         EventManager.getInstance().triggerEvent(new LocoNetErrorEvent(error));
     }
 
-    public synchronized boolean send(@NotNull ILocoNetMessage message) {
+    private void sendResponse(ILocoNetMessage message) throws IllegalStateException {
+        if(message == null)
+            return;
+        if(this.connector == null)
+            throw new IllegalStateException("No port is configured");
+
+        LOGGER.info("Sending new message to LocoNet: " + message);
+
+        if(!message.send(this.connector)) {
+            LOGGER.warning("The response message could not be send to the loco net");
+        }
+    }
+
+    public synchronized boolean send(@NotNull ILocoNetMessage message) throws IllegalStateException {
+        if(this.connector == null)
+            throw new IllegalStateException("No port is configured");
+
         LOGGER.info("Sending new message to LocoNet: " + message);
         return message.send(this.connector);
     }
