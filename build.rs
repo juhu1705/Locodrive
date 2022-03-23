@@ -33,11 +33,15 @@ fn main() {
 }
 
 fn gen_jni_bindings(jni_c_headers_rs: &Path) {
-    let java_home = dirs::home_dir().unwrap().join(".jdks").join("openjdk-17.0.2");
+    let mut java_home = dirs::home_dir().unwrap().join(".jdks").join("openjdk-17.0.2");
+
+    if !java_home.exists() {
+        java_home = PathBuf::from(env::var("JAVA_HOME").expect("JAVA_HOME env variable not set"));
+    }
 
     let java_include_dir = Path::new(&java_home).join("include");
 
-    let target = env::var("TARGET").expect("target env var not setted");
+    let target = env::var("TARGET").expect("target env var not set");
     let java_sys_include_dir = java_include_dir.join(if target.contains("windows") {
         "win32"
     } else if target.contains("darwin") {
@@ -46,7 +50,7 @@ fn gen_jni_bindings(jni_c_headers_rs: &Path) {
         "linux"
     });
 
-    let include_dirs = [java_include_dir, java_sys_include_dir];
+    let include_dirs = [java_include_dir, java_sys_include_dir, PathBuf::from("/usr/include")];
     println!("jni include dirs {:?}", include_dirs);
 
     let jni_h_path =

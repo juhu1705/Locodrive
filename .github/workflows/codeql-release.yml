@@ -1,0 +1,52 @@
+name: "Release"
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  analyze:
+    name: RustConnectionAnalysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['java']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Init Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Build project
+        run: setup_scripts/build.sh
+
+      - name: Build gradle wrapper
+        run: gradle wrapper
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      # The USERNAME and TOKEN need to correspond to the credentials' environment variables used in
+      # the publishing section of your build.gradle
+      - name: Publish package
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
