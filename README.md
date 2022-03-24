@@ -1,4 +1,4 @@
-# LocoDrive [![CodeQL](https://github.com/juhu1705/LocoDrive/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/juhu1705/LocoDrive/actions/workflows/codeql-analysis.yml) [![Gradle Package](https://github.com/juhu1705/LocoDrive/actions/workflows/gradle-publish.yml/badge.svg)](https://github.com/juhu1705/LocoDrive/actions/workflows/gradle-publish.yml)
+# LocoDrive [![Test](https://github.com/juhu1705/Locodrive/actions/workflows/codeql-analyse.yml/badge.svg)](https://github.com/juhu1705/Locodrive/actions/workflows/codeql-analyse.yml) [![Release](https://github.com/juhu1705/Locodrive/actions/workflows/codeql-release.yml/badge.svg)](https://github.com/juhu1705/Locodrive/actions/workflows/codeql-release.yml)
 
 A fully functional Java library for controlling a model train railroad based on a loco net system. The sending logic of this library is written in rust and embedded as native library in Java.
 
