@@ -1,3 +1,5 @@
+import java.util.logging.Level
+
 plugins {
     // Apply the java-library plugin for API and implementation separation.
     id 'java-library'
@@ -60,6 +62,7 @@ def flapigen_code = tasks.create(name: 'optimize-flapigen-code', description: "A
     def basePath = new File(project.ext.cargo_target_directory).getParentFile()
 
     locoNetMessages.forEach(className -> {
+        logger.log(LogLevel.WARN, basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java: " + (new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists()))
         if(new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists())
             ant.replace(file: basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
     })
