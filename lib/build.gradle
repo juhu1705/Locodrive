@@ -49,26 +49,33 @@ tasks.create(name: "cargo-output-dir", description: "Get cargo metadata") {
 
 tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", dependsOn: "cargo-output-dir") {
     workingDir rustBasePath
+    logger.info("Run cargo build")
     commandLine 'cargo', 'build', '--release'
 }
 
-tasks.create(name: 'optimize-flapigen-code', type: GradleBuild, description: "Adds implements parameters", dependsOn: "cargo-build") {
+def flapigen_code = tasks.create(name: 'optimize-flapigen-code', description: "Adds implements parameters") {
     logger.info("Optimize flapigen code")
     def locoNetMessages = ["Idle", "GpOn", "GpOff", "Busy", "LocoAdr", "SwAck", "SwState", "RqSlData", "MoveSlots", "LinkSlots", "UnlinkSlots", "ConsistFunc", "SlotStat1", "LongAck", "InputRep", "SwRep", "SwReq", "LocoSnd", "LocoDirf", "LocoSpd", "MultiSense", "UhliFun", "WrSlData", "SlRdData", "ImmPacket", "Rep", "PeerXfer"]
 
+    def basePath = new File(project.ext.cargo_target_directory).getParentFile()
+
     locoNetMessages.forEach(className -> {
-        ant.replace(file: "src\\main\\java\\de\\noisruker\\locodrive\\args\\" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
+        if(new File(basePath.getAbsolutePath() + "\\lib\\src\\main\\java\\de\\noisruker\\locodrive\\args\\" + className + ".java").exists())
+            ant.replace(file: basePath.getAbsolutePath() + "\\lib\\src\\main\\java\\de\\noisruker\\locodrive\\args\\" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
     })
 }
 
-tasks.create(name: "rust-deploy", type: Sync, dependsOn: "optimize-flapigen-code") {
+def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-build") {
     from "${project.ext.cargo_target_directory}/release"
     include "*.dylib","*.so","*.dll"
     into "rust-lib/"
 }
 
+deploy.configure {mustRunAfter("cargo-build")}
+flapigen_code.configure {mustRunAfter("cargo-build")}
+
 tasks.withType(JavaCompile) {
-    compileTask -> compileTask.dependsOn "rust-deploy"
+    compileTask -> compileTask.dependsOn "rust-deploy", "optimize-flapigen-code"
 }
 
 sourceSets {
