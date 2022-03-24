@@ -12,6 +12,10 @@ public class LocoNetErrorEvent extends Event<Void> {
         this.error = error;
     }
 
+    /**
+     *
+     * @return The rust connection error to handle.
+     */
     public MessageParseError getError() {
         return this.error;
     }

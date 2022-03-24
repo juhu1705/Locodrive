@@ -54,13 +54,38 @@ impl MessageParseError {
         };
         f
     }
+
+    fn error_type(&self) -> u8 {
+        return match self {
+            Self::UnknownOpcode(_opc) => 0,
+            Self::UnexpectedEnd => 1,
+            Self::InvalidChecksum => 2,
+            Self::IoError(_err) => 3,
+            Self::Update(_err) => 4,
+        }
+    }
+
+    fn get_unknown_opc(&self) -> u8 {
+        match self {
+            Self::UnknownOpcode(opc) => *opc,
+            _ => { panic!("No unexpected opc!") },
+        }
+    }
 }
 
-foreign_class!(class MessageParseError {
-    self_type MessageParseError;
-    private constructor = empty;
-    fn MessageParseError::msg(&self) -> String; alias toString;
-});
+foreign_class!(
+    /// A class representing a rust error, when sending to or reading from the loco net fails
+    class MessageParseError {
+        self_type MessageParseError;
+        private constructor = empty;
+        /// @return The message of this error
+        fn MessageParseError::msg(&self) -> String; alias toString;
+        /// @return The error type of this error. (1 - unknown op code, 2 - unexpected end, 3 - invalid checksum, 4 - io error, 5 - update (only for rust intern use should not be thrown))
+        fn MessageParseError::error_type(&self) -> u8; alias getErrorType;
+        /// @return The unknown op code only for unknown op code errors. Please do not invoke this method for other errors.
+        fn MessageParseError::get_unknown_opc(&self) -> u8; alias getUnknownOpc;
+    }
+);
 
 #[derive(Debug, Copy, Clone)]
 pub struct AddressArg(u16);
@@ -100,15 +125,33 @@ impl AddressArg {
     pub fn equals(&self, other: AddressArg) -> bool {
         self.0 == other.0
     }
+
+    pub fn to_string(&self) -> String {
+        let mut f = String::new();
+        write!(&mut f, "adr: {}", self.0).unwrap_or(());
+        f
+    }
 }
 
-foreign_class!(class AddressArg {
-    self_type AddressArg;
-    constructor AddressArg::new(_: u16) -> AddressArg;
-    fn AddressArg::address(&self) -> u16;
-    fn AddressArg::set_address(&mut self, _: u16); alias setAddress;
-    fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equalsTo;
-});
+foreign_class!(
+    /// This arg represents a loco net address of 14 byte length.
+    class AddressArg {
+        self_type AddressArg;
+        /// Creates a new loco net address. Please consider to keep in range of 14 bytes.
+        /// @param address The loco net address
+        constructor AddressArg::new(address: u16) -> AddressArg;
+        /// @return The 14 byte loco net address
+        fn AddressArg::address(&self) -> u16;
+        /// Sets a new 14 byte loco net address to this arg
+        /// @param address The 14 byte loco net address
+        fn AddressArg::set_address(&mut self, address: u16); alias setAddress;
+        /// Checks whether this address is equal to another. To addresses are equal, when their 14 byte addresses are equal.
+        /// @param other The other address to check equality with
+        fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equalsTo;
+        /// @return A string of the format: 'adr: {14 byte address}'
+        fn AddressArg::to_string(&self) -> String; alias toString;
+    }
+);
 
 #[derive(Debug, Copy, Clone)]
 pub enum SwitchDirection {
