@@ -60,8 +60,8 @@ def flapigen_code = tasks.create(name: 'optimize-flapigen-code', description: "A
     def basePath = new File(project.ext.cargo_target_directory).getParentFile()
 
     locoNetMessages.forEach(className -> {
-        if(new File(basePath.getAbsolutePath() + "\\lib\\src\\main\\java\\de\\noisruker\\locodrive\\args\\" + className + ".java").exists())
-            ant.replace(file: basePath.getAbsolutePath() + "\\lib\\src\\main\\java\\de\\noisruker\\locodrive\\args\\" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
+        if(new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists())
+            ant.replace(file: basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
     })
 }
 
