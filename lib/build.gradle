@@ -53,19 +53,18 @@ tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", de
     workingDir rustBasePath
     logger.info("Run cargo build")
     commandLine 'cargo', 'build', '--release'
-}
+    doLast {
+        logger.info("Optimize flapigen code")
+        def locoNetMessages = ["Idle", "GpOn", "GpOff", "Busy", "LocoAdr", "SwAck", "SwState", "RqSlData", "MoveSlots", "LinkSlots", "UnlinkSlots", "ConsistFunc", "SlotStat1", "LongAck", "InputRep", "SwRep", "SwReq", "LocoSnd", "LocoDirf", "LocoSpd", "MultiSense", "UhliFun", "WrSlData", "SlRdData", "ImmPacket", "Rep", "PeerXfer"]
 
-def flapigen_code = tasks.create(name: 'optimize-flapigen-code', description: "Adds implements parameters") {
-    logger.info("Optimize flapigen code")
-    def locoNetMessages = ["Idle", "GpOn", "GpOff", "Busy", "LocoAdr", "SwAck", "SwState", "RqSlData", "MoveSlots", "LinkSlots", "UnlinkSlots", "ConsistFunc", "SlotStat1", "LongAck", "InputRep", "SwRep", "SwReq", "LocoSnd", "LocoDirf", "LocoSpd", "MultiSense", "UhliFun", "WrSlData", "SlRdData", "ImmPacket", "Rep", "PeerXfer"]
+        def basePath = new File(project.ext.cargo_target_directory).getParentFile()
 
-    def basePath = new File(project.ext.cargo_target_directory).getParentFile()
-
-    locoNetMessages.forEach(className -> {
-        logger.log(LogLevel.WARN, basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java: " + (new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists()))
-        if(new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists())
-            ant.replace(file: basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
-    })
+        locoNetMessages.forEach(className -> {
+            logger.info(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java: " + (new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists()))
+            if(new File(basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java").exists())
+                ant.replace(file: basePath.getAbsolutePath() + "/lib/src/main/java/de/noisruker/locodrive/args/" + className + ".java", token: "public final class " + className + " {", value: "public final class " + className + " implements de.noisruker.locodrive.control.ILocoNetMessage {")
+        })
+    }
 }
 
 def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-build") {
@@ -75,7 +74,6 @@ def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-bui
 }
 
 deploy.configure {mustRunAfter("cargo-build")}
-flapigen_code.configure {mustRunAfter("cargo-build")}
 
 tasks.withType(JavaCompile) {
     compileTask -> compileTask.dependsOn "rust-deploy", "optimize-flapigen-code"
