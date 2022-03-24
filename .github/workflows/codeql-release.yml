@@ -34,7 +34,7 @@ jobs:
           java-version: 17
 
       - name: Build win and darwin natives
-        run: setup_scripts/build.sh
+        run: ./setup_scripts/build.sh
 
       - name: Build gradle wrapper
         run: gradle wrapper

@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Get clang
-        run: setup_scripts/prepare_build.sh
+        run: ./setup_scripts/prepare_build.sh
 
       - name: Checkout repository
         uses: actions/checkout@v2
