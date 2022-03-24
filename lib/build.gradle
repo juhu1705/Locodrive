@@ -76,7 +76,7 @@ def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-bui
 deploy.configure {mustRunAfter("cargo-build")}
 
 tasks.withType(JavaCompile) {
-    compileTask -> compileTask.dependsOn "rust-deploy", "optimize-flapigen-code"
+    compileTask -> compileTask.dependsOn "rust-deploy"
 }
 
 sourceSets {
