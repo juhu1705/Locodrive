@@ -33,7 +33,7 @@ jobs:
           distribution: 'zulu'
           java-version: 17
 
-      - name: Build project
+      - name: Build win and darwin natives
         run: setup_scripts/build.sh
 
       - name: Build gradle wrapper
