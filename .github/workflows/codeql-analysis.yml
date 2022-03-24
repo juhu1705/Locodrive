@@ -37,7 +37,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.0.0
+
+      - name: Check worktree
+        run: ls -R .
 
       - name: Get clang
         run: ./setup_scripts/prepare_build.sh
