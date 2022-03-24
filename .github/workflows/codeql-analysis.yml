@@ -45,7 +45,7 @@ jobs:
       - name: Get clang
         run: |
           chmod 764 ./setup_scripts/prepare_build.sh
-          sh ./setup_scripts/prepare_build.sh
+          sudo sh ./setup_scripts/prepare_build.sh
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
