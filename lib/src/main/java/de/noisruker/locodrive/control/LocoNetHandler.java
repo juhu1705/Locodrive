@@ -50,6 +50,20 @@ public class LocoNetHandler {
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
+    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout) throws Exception {
+        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+            throw new IllegalArgumentException("The port " + serialPort + " is not available!");
+        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, this::read, this::handleLack, this::handleError);
+        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+    }
+
+    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout, long update_cycles, FlowControl flow_control) throws Exception {
+        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+            throw new IllegalArgumentException("The port " + serialPort + " is not available!");
+        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, update_cycles, flow_control, this::read, this::handleLack, this::handleError);
+        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+    }
+
     public String[] getPortInfos() {
         return PortInfos.getAllPorts();
     }
