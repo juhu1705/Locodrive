@@ -54,13 +54,60 @@ impl MessageParseError {
         };
         f
     }
+
+    fn error_type(&self) -> u8 {
+        return match self {
+            Self::UnknownOpcode(_opc) => 0,
+            Self::UnexpectedEnd => 1,
+            Self::InvalidChecksum => 2,
+            Self::IoError(_err) => 3,
+            Self::Update(_err) => 4,
+        }
+    }
+
+    fn get_unknown_opc(&self) -> u8 {
+        match self {
+            Self::UnknownOpcode(opc) => *opc,
+            _ => { panic!("No unexpected opc!") },
+        }
+    }
 }
 
-foreign_class!(class MessageParseError {
-    self_type MessageParseError;
-    private constructor = empty;
-    fn MessageParseError::msg(&self) -> String; alias toString;
-});
+foreign_class!(
+    /// A class representing a rust error, when sending to or reading from the loco net fails
+    class MessageParseError {
+        self_type MessageParseError;
+        private constructor = empty;
+        /// @return The message of this error
+        fn MessageParseError::msg(&self) -> String; alias toString;
+        /// @return The error type of this error. (1 - unknown op code, 2 - unexpected end, 3 - invalid checksum, 4 - io error, 5 - update (only for rust intern use should not be thrown))
+        fn MessageParseError::error_type(&self) -> u8; alias getErrorType;
+        /// @return The unknown op code only for unknown op code errors. Please do not invoke this method for other errors.
+        fn MessageParseError::get_unknown_opc(&self) -> u8; alias getUnknownOpc;
+        foreign_code r#"
+    /**
+     * Checks whether this error is equal to another object.
+     * @param o The object to compare to
+     * @return If this error is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.toString().equals(((MessageParseError) o).toString());
+    }
+
+    /**
+     * Generates a hash code for this error by hashing its output string.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
+    }
+);
 
 #[derive(Debug, Copy, Clone)]
 pub struct AddressArg(u16);
@@ -100,26 +147,72 @@ impl AddressArg {
     pub fn equals(&self, other: AddressArg) -> bool {
         self.0 == other.0
     }
+
+    pub fn to_string(&self) -> String {
+        let mut f = String::new();
+        write!(&mut f, "adr: {}", self.0).unwrap_or(());
+        f
+    }
 }
 
-foreign_class!(class AddressArg {
-    self_type AddressArg;
-    constructor AddressArg::new(_: u16) -> AddressArg;
-    fn AddressArg::address(&self) -> u16;
-    fn AddressArg::set_address(&mut self, _: u16); alias setAddress;
-    fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equalsTo;
-});
+foreign_class!(
+    /// This arg represents a loco net address of 14 byte length.
+    #[derive(Clone)]
+    class AddressArg {
+        self_type AddressArg;
+        /// Creates a new loco net address. Please consider to keep in range of 14 bytes.
+        /// @param address The loco net address
+        constructor AddressArg::new(address: u16) -> AddressArg;
+        /// @return The 14 byte loco net address
+        fn AddressArg::address(&self) -> u16; alias address;
+        /// Sets a new 14 byte loco net address to this arg
+        /// @param address The 14 byte loco net address
+        fn AddressArg::set_address(&mut self, address: u16); alias setAddress;
+        /// Checks whether this address is equal to another. To addresses are equal, when their 14 byte addresses are equal.
+        /// @param other The other address to check equality with
+        fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equals;
+        /// @return A string of the format: 'adr: {14 byte address}'
+        fn AddressArg::to_string(&self) -> String; alias toString;
+        foreign_code r#"
+    /**
+     * Checks whether this address is equal to another object.
+     * @param o The object to compare to
+     * @return If this address is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((AddressArg) o);
+    }
 
-#[derive(Debug, Copy, Clone)]
+    /**
+     * Generates a hash code for this address by hashing its output string.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.address());
+    }
+"#;
+    }
+);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SwitchDirection {
     Straight,
     Curved,
 }
 
-foreign_enum!(enum SwitchDirection {
-    STRAIGHT = SwitchDirection::Straight,
-    CURVED = SwitchDirection::Curved,
-});
+foreign_enum!(
+    /// Indicates the state oh a switch
+    enum SwitchDirection {
+        /// The switch is straight (1)
+        STRAIGHT = SwitchDirection::Straight,
+        /// The switch is curved (0)
+        CURVED = SwitchDirection::Curved,
+    }
+);
 
 #[derive(Debug, Copy, Clone)]
 pub struct SwitchArg {
@@ -196,16 +289,18 @@ impl SwitchArg {
     }
 }
 
-foreign_class!(class SwitchArg {
-    self_type SwitchArg;
-    constructor SwitchArg::new(_: u16, _: SwitchDirection, _: bool) -> SwitchArg;
-    fn SwitchArg::address(&self) -> u16;
-    fn SwitchArg::direction(&self) -> SwitchDirection;
-    fn SwitchArg::state(&self) -> bool;
-    fn SwitchArg::set_address(&mut self, _: u16); alias setAddress;
-    fn SwitchArg::set_direction(&mut self, _: SwitchDirection); alias setDirection;
-    fn SwitchArg::set_state(&mut self, _: bool); alias setState;
-});
+foreign_class!(
+    class SwitchArg {
+        self_type SwitchArg;
+        constructor SwitchArg::new(_: u16, _: SwitchDirection, _: bool) -> SwitchArg;
+        fn SwitchArg::address(&self) -> u16;
+        fn SwitchArg::direction(&self) -> SwitchDirection;
+        fn SwitchArg::state(&self) -> bool;
+        fn SwitchArg::set_address(&mut self, _: u16); alias setAddress;
+        fn SwitchArg::set_direction(&mut self, _: SwitchDirection); alias setDirection;
+        fn SwitchArg::set_state(&mut self, _: bool); alias setState;
+    }
+);
 
 #[derive(Debug, Copy, Clone)]
 pub struct SlotArg(u8);
