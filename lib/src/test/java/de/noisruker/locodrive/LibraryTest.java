@@ -61,21 +61,15 @@ public class LibraryTest {
 
             LocoNetHandler.getInstance().startReader();
 
-            LocoNetHandler.getInstance().send(new GpOff());
+            assertTrue(LocoNetHandler.getInstance().send(new GpOff()));
 
-            Thread.sleep(100);
-
-            LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 100));
-
-            Thread.sleep(100);
+            assertTrue(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 100)));
 
             LocoNetHandler.getInstance().stop();
 
-            Thread.sleep(2000);
+            assertFalse(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0)));
 
-            LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0));
-
-            LocoNetHandler.getInstance().send(new GpOff());
+            assertFalse(LocoNetHandler.getInstance().send(new GpOff()));
 
             Logger.LOGGER.info("loco net connection was successfully");
         }

@@ -22,7 +22,7 @@ public class LocoNetHandler {
             else if(OS.contains("nix") || OS.contains("nux") || OS.contains("aix"))
                 NativeUtils.loadLibraryFromJar("/liblocodrive.so");
             else if(OS.contains("mac"))
-                NativeUtils.loadLibraryFromJar("/locodrive.dylib");
+                NativeUtils.loadLibraryFromJar("/liblocodrive.dylib");
             else
                 throw new RuntimeException("Not allowed System OS. For support please ask the creator!");
         } catch (java.io.IOException e) {

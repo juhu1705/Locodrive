@@ -3578,6 +3578,7 @@ impl LocoNetConnector {
         LocoNetConnector::new(port_name, 115_200, 500, 5000, FlowControl::Software, message_observer, lack_observer, error_handler)
     }
 
+    //noinspection RsDetachedFile
     pub fn new(port_name: &str, baud_rate: u32, sending_timeout: u64, update_cycles: u64, flow_control: FlowControl, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
         let port = serialport::new(port_name, baud_rate)
             .data_bits(DataBits::Eight)
@@ -3713,12 +3714,11 @@ impl LocoNetConnector {
         }
 
         // Check for receiving last send message
-
         let (lock, cvar, waiter) = &*self.send;
-
         let mut last_send = lock.lock().unwrap();
 
         if !(*last_send).is_empty() && (*last_send) == buf {
+            println!("Reset!");
             *last_send = vec![0u8; 0];
             waiter.notify_all();
             cvar.notify_one();
@@ -3881,9 +3881,9 @@ impl LocoNetConnector {
 
         match self.port.write_all(&*send) {
             Ok(_) => {
+                drop(send);
                 if !(*lock.lock().unwrap()).is_empty() {
                     let result = waiter.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(self.sending_timeout), |pending| !(*pending).is_empty()).unwrap();
-
                     if result.1.timed_out() {
                         self.error_handler.on_exception_occurred(
                             MessageParseError::IoError(
@@ -3893,7 +3893,6 @@ impl LocoNetConnector {
                         return false;
                     }
                 }
-
                 true
             },
             Err(_) => false,
