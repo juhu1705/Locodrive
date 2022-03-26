@@ -3563,19 +3563,29 @@ pub struct LocoNetConnector {
     error_handler: Box<dyn ExceptionObserver>,
     lack: bool,
     last_message: Message,
-    send: Arc<(Mutex<Vec<u8>>, Condvar)>,
+    send: Arc<(Mutex<Vec<u8>>, Condvar, Condvar)>,
     stop: Mutex<bool>,
-    reading_thread: Option<JoinHandle<()>>
+    reading_thread: Option<JoinHandle<()>>,
+    sending_timeout: u64
 }
 
 impl LocoNetConnector {
-    pub fn new(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
-        let port = serialport::new(port_name, 115_200)
+    pub fn new_norm(port_name: &str, baud_rate: u32, sending_timeout: u64, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
+        LocoNetConnector::new(port_name, baud_rate, sending_timeout, 5000, FlowControl::Software, message_observer, lack_observer, error_handler)
+    }
+
+    pub fn new_short(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
+        LocoNetConnector::new(port_name, 115_200, 500, 5000, FlowControl::Software, message_observer, lack_observer, error_handler)
+    }
+
+    //noinspection RsDetachedFile
+    pub fn new(port_name: &str, baud_rate: u32, sending_timeout: u64, update_cycles: u64, flow_control: FlowControl, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
+        let port = serialport::new(port_name, baud_rate)
             .data_bits(DataBits::Eight)
             .stop_bits(StopBits::Two)
             .parity(Parity::None)
-            .flow_control(FlowControl::Software)
-            .timeout(Duration::from_secs(5))
+            .flow_control(flow_control)
+            .timeout(Duration::from_millis(update_cycles))
             .open();
 
         return if port.is_err() {
@@ -3588,9 +3598,10 @@ impl LocoNetConnector {
                 error_handler,
                 lack: false,
                 last_message: Message::Busy(Busy()),
-                send: Arc::new((Mutex::new(vec![0u8; 0]), Condvar::new())),
+                send: Arc::new((Mutex::new(vec![0u8; 0]), Condvar::new(), Condvar::new())),
                 stop: Mutex::new(false),
                 reading_thread: None,
+                sending_timeout,
             })
         }
     }
@@ -3703,13 +3714,13 @@ impl LocoNetConnector {
         }
 
         // Check for receiving last send message
-
-        let (lock, cvar) = &*self.send;
-
+        let (lock, cvar, waiter) = &*self.send;
         let mut last_send = lock.lock().unwrap();
 
         if !(*last_send).is_empty() && (*last_send) == buf {
+            println!("Reset!");
             *last_send = vec![0u8; 0];
+            waiter.notify_all();
             cvar.notify_one();
         }
 
@@ -3849,10 +3860,10 @@ impl LocoNetConnector {
 
         let bytes = Self::to_message(message);
 
-        let (lock, cvar) = &*self.send;
+        let (lock, cvar, waiter) = &*self.send;
 
         if !(*lock.lock().unwrap()).is_empty() {
-            let result = cvar.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(500), |pending| !(*pending).is_empty()).unwrap();
+            let result = cvar.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(self.sending_timeout), |pending| !(*pending).is_empty()).unwrap();
 
             if result.1.timed_out() {
                 self.error_handler.on_exception_occurred(
@@ -3869,7 +3880,21 @@ impl LocoNetConnector {
         *send = bytes;
 
         match self.port.write_all(&*send) {
-            Ok(_) => true,
+            Ok(_) => {
+                drop(send);
+                if !(*lock.lock().unwrap()).is_empty() {
+                    let result = waiter.wait_timeout_while(lock.lock().unwrap(), Duration::from_millis(self.sending_timeout), |pending| !(*pending).is_empty()).unwrap();
+                    if result.1.timed_out() {
+                        self.error_handler.on_exception_occurred(
+                            MessageParseError::IoError(
+                                std::io::Error::new(
+                                    std::io::ErrorKind::TimedOut, "Connection timed out! Please check your connected device."
+                                )));
+                        return false;
+                    }
+                }
+                true
+            },
             Err(_) => false,
         }
     }
@@ -3885,11 +3910,26 @@ impl LocoNetConnector {
     }
 }
 
+foreign_enum!(enum FlowControl {
+    SOFTWARE = FlowControl::Software,
+    HARDWARE = FlowControl::Hardware,
+    NONE = FlowControl::None,
+});
+
 foreign_class!(class LocoNetConnector {
     self_type LocoNetConnector;
-    constructor LocoNetConnector::new(portName: &str, messageObserver: Box<dyn LocoNetMessageObserver>, lackObserver: Box<dyn LackMessageObserver>, errorHandler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
+    constructor LocoNetConnector::new(port_name: &str, baud_rate: u32, sending_timeout: u64, update_cycles: u64, flow_control: FlowControl, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
+    foreign_code r#"
+    public LocoNetConnector(String port_name, long baud_rate, long sending_timeout, LocoNetMessageObserver message_observer, LackMessageObserver lack_observer, ExceptionObserver error_handler) throws Exception {
+        this(port_name, baud_rate, sending_timeout, 5000, FlowControl.SOFTWARE, message_observer, lack_observer, error_handler);
+    }
+
+    public LocoNetConnector(String port_name, LocoNetMessageObserver message_observer, LackMessageObserver lack_observer, ExceptionObserver error_handler) throws Exception {
+        this(port_name, 115_200, 500, 5000, FlowControl.SOFTWARE, message_observer, lack_observer, error_handler);
+    }
+"#;
+
     fn LocoNetConnector::start_reader(&mut self) -> bool; alias startReader;
     fn LocoNetConnector::stop_reader(&mut self); alias stopReader;
     fn LocoNetConnector::get_port_name(&self) -> String; alias getPortName;
 });
-

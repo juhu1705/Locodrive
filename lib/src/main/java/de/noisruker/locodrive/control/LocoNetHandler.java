@@ -22,7 +22,7 @@ public class LocoNetHandler {
             else if(OS.contains("nix") || OS.contains("nux") || OS.contains("aix"))
                 NativeUtils.loadLibraryFromJar("/liblocodrive.so");
             else if(OS.contains("mac"))
-                NativeUtils.loadLibraryFromJar("/locodrive.dylib");
+                NativeUtils.loadLibraryFromJar("/liblocodrive.dylib");
             else
                 throw new RuntimeException("Not allowed System OS. For support please ask the creator!");
         } catch (java.io.IOException e) {
@@ -47,6 +47,20 @@ public class LocoNetHandler {
         if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
         this.connector = new LocoNetConnector(serialPort, this::read, this::handleLack, this::handleError);
+        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+    }
+
+    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout) throws Exception {
+        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+            throw new IllegalArgumentException("The port " + serialPort + " is not available!");
+        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, this::read, this::handleLack, this::handleError);
+        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+    }
+
+    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout, long update_cycles, FlowControl flow_control) throws Exception {
+        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+            throw new IllegalArgumentException("The port " + serialPort + " is not available!");
+        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, update_cycles, flow_control, this::read, this::handleLack, this::handleError);
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
