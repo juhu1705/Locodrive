@@ -2,10 +2,65 @@ import java.util.logging.Level
 
 plugins {
     // Apply the java-library plugin for API and implementation separation.
+    id 'java'
     id 'java-library'
+    id 'maven-publish'
 }
 
+group 'de.noisruker'
+version '0.0.0'
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+sourcesJar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'locodrive' as Publication
+            from components.java
+            pom {
+                name = 'Locodrive'
+                description = 'A basic java library for managing the connection to a loco net'
+                url = 'https://github.com/juhu1705/Locodrive'
+                licenses {
+                    license {
+                        name = 'GNU General Public License, Version 3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'juhu1705'
+                        name = 'Fabius Mettner'
+                        email = 'fabius1705@live.de'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/juhu1705/Locodrive.git'
+                    developerConnection = 'scm:git:ssh://github.com/juhu1705/Locodrive.git'
+                    url = 'http://github.com/juhu1705/Locodrive'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/juhu1705/Locodrive")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
 
 repositories {
     // Use Maven Central for resolving dependencies.
@@ -30,6 +85,12 @@ dependencies {
 
     implementation 'de.noisruker:event-manager:1.1.0'
     implementation 'de.noisruker:logger:1.0.3'
+}
+
+javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
 }
 
 def rustBasePath = ".."

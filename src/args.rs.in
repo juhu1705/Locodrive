@@ -109,7 +109,7 @@ foreign_class!(
     }
 );
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct AddressArg(u16);
 
 impl AddressArg {
@@ -149,9 +149,19 @@ impl AddressArg {
     }
 
     pub fn to_string(&self) -> String {
-        let mut f = String::new();
-        write!(&mut f, "adr: {}", self.0).unwrap_or(());
-        f
+        format!("adr: {}", self.0)
+    }
+}
+
+impl PartialEq for AddressArg {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Display for AddressArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "adr: {}", self.0)
     }
 }
 
@@ -170,8 +180,8 @@ foreign_class!(
         fn AddressArg::set_address(&mut self, address: u16); alias setAddress;
         /// Checks whether this address is equal to another. To addresses are equal, when their 14 byte addresses are equal.
         /// @param other The other address to check equality with
-        fn AddressArg::equals(&self, other: AddressArg) -> bool; alias equals;
-        /// @return A string of the format: 'adr: {14 byte address}'
+        fn AddressArg::eq(&self, other: &AddressArg) -> bool; alias equals;
+        /// @return A string of the format: 'adr: 14 byte address'
         fn AddressArg::to_string(&self) -> String; alias toString;
         foreign_code r#"
     /**
@@ -214,7 +224,7 @@ foreign_enum!(
     }
 );
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct SwitchArg {
     address: u16,
     direction: SwitchDirection,
@@ -287,18 +297,75 @@ impl SwitchArg {
 
         sw2
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl PartialEq for SwitchArg {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address && self.state == other.state && self.direction == other.direction
+    }
+}
+
+impl Display for SwitchArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "sw: {}, {}, {:?}", self.address, self.state, self.direction)
+    }
 }
 
 foreign_class!(
+    /// Represents a switch loco net message.
     class SwitchArg {
         self_type SwitchArg;
-        constructor SwitchArg::new(_: u16, _: SwitchDirection, _: bool) -> SwitchArg;
+        /// Creates a new switch message
+        /// @param address The switch address
+        /// @param direction The switch direction
+        /// @param state The switch state
+        constructor SwitchArg::new(address: u16, direction: SwitchDirection, state: bool) -> SwitchArg;
+        /// @return The switch address
         fn SwitchArg::address(&self) -> u16;
+        /// @return The switch direction
         fn SwitchArg::direction(&self) -> SwitchDirection;
+        /// @return The switch state
         fn SwitchArg::state(&self) -> bool;
-        fn SwitchArg::set_address(&mut self, _: u16); alias setAddress;
-        fn SwitchArg::set_direction(&mut self, _: SwitchDirection); alias setDirection;
-        fn SwitchArg::set_state(&mut self, _: bool); alias setState;
+        /// Sets the switch address
+        /// @param address The switch address
+        fn SwitchArg::set_address(&mut self, address: u16); alias setAddress;
+        /// Sets the switch direction
+        /// @param direction The switch direction
+        fn SwitchArg::set_direction(&mut self, direction: SwitchDirection); alias setDirection;
+        /// Sets the switch state
+        /// @param state The switch state
+        fn SwitchArg::set_state(&mut self, state: bool); alias setState;
+        /// @return A string in the format "sw: address, direction, state"
+        fn SwitchArg::to_string(&self) -> String; alias toString;
+        /// @param other Another switch arg to compare
+        /// @return If the other switch arg is equals to this
+        fn SwitchArg::eq(&self, other: &SwitchArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this switch arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this switch arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SwitchArg) o);
+    }
+
+    /**
+     * Generates a hash code for this address by hashing its output string.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.address(), this.direction(), this.state());
+    }
+"#;
     }
 );
 
@@ -3496,36 +3563,94 @@ impl Message {
     }
 }
 
-foreign_class!(class Message {
+foreign_class!(
+/// This class represents a loco net message. Its type can be found out by calling getMessageType. This class is a bridge for rust and java messages, to dont lose the type data.
+class Message {
     self_type Message;
     private constructor = empty;
+    /// The type of the loco net message
+    /// 0 - Idle,<br>
+    /// 1 - GpOn,<br>
+    /// 2 - GpOff,<br>
+    /// 3 - Busy,<br>
+    /// 4 - LocoAdr,<br>
+    /// 5 - SwAck,<br>
+    /// 6 - SwState,
+    /// 7 - RqSlData,
+    /// 8 - MoveSlots,
+    /// 9 - LinkSlots,
+    /// 10 - UnlinkSlots,
+    /// 11 - ConsistFunc,
+    /// 12 - SlotStat1,
+    /// 13 - LongAck,
+    /// 14 - InputRep,
+    /// 15 - SwRep,
+    /// 16 - SwReq,
+    /// 17 - LocoSnd,
+    /// 18 - LocoDirf,
+    /// 19 - LocoSpd,
+    /// 20 - MultiSense,
+    /// 21 - UhliFun,
+    /// 22 - WrSlData,
+    /// 23 - SlRdData,
+    /// 24 - ImmPacket,
+    /// 25 - Rep,
+    /// 26 - PeerXfer,
+    /// @return The loco net message type
     fn Message::get_message_type(&self) -> u8; alias getMessageType;
+    /// @return The Idle message if this message is an Idle message
     fn Message::get_idle(&self) -> Idle; alias getIdle;
+    /// @return The GpOn message if this message is an GpOn message
     fn Message::get_gp_on(&self) -> GpOn; alias getGpOn;
+    /// @return The GpOff message if this message is an GpOff message
     fn Message::get_gp_off(&self) -> GpOff; alias getGpOff;
+    /// @return The Busy message if this message is an Busy message
     fn Message::get_busy(&self) -> Busy; alias getBusy;
+    /// @return The LocoAdr message if this message is an LocoAdr message
     fn Message::get_loco_adr(&self) -> LocoAdr; alias getLocoAdr;
+    /// @return The SwAck message if this message is an SwAck message
     fn Message::get_sw_ack(&self) -> SwAck; alias getSwAck;
+    /// @return The SwState message if this message is an SwState message
     fn Message::get_sw_state(&self) -> SwState; alias getSwState;
+    /// @return The RqSlData message if this message is an RqSlData message
     fn Message::get_rq_sl_data(&self) -> RqSlData; alias getRqSlData;
+    /// @return The MoveSlots message if this message is an MoveSlots message
     fn Message::get_move_slots(&self) -> MoveSlots; alias getMoveSlots;
+    /// @return The LinkSlots message if this message is an LinkSlots message
     fn Message::get_link_slots(&self) -> LinkSlots; alias getLinkSlots;
+    /// @return The UnlinkSlots message if this message is an UnlinkSlots message
     fn Message::get_unlink_slots(&self) -> UnlinkSlots; alias getUnlinkSlots;
+    /// @return The ConsistFunc message if this message is an ConsistFunc message
     fn Message::get_consist_func(&self) -> ConsistFunc; alias getConsistFunc;
+    /// @return The SlotStat1 message if this message is an SlotStat1 message
     fn Message::get_slot_stat1(&self) -> SlotStat1; alias getSlotStat1;
+    /// @return The LongAck message if this message is an LongAck message
     fn Message::get_long_ack(&self) -> LongAck; alias getLongAck;
+    /// @return The InputRep message if this message is an InputRep message
     fn Message::get_input_rep(&self) -> InputRep; alias getInputRep;
+    /// @return The SwRep message if this message is an SwRep message
     fn Message::get_sw_rep(&self) -> SwRep; alias getSwRep;
+    /// @return The SwReq message if this message is an SwReq message
     fn Message::get_sw_req(&self) -> SwReq; alias getSwReq;
+    /// @return The LocoSnd message if this message is an LocoSnd message
     fn Message::get_loco_snd(&self) -> LocoSnd; alias getLocoSnd;
+    /// @return The LocoDirf message if this message is an LocoDirf message
     fn Message::get_loco_dirf(&self) -> LocoDirf; alias getLocoDirf;
+    /// @return The LocoSpd message if this message is an LocoSpd message
     fn Message::get_loco_spd(&self) -> LocoSpd; alias getLocoSpd;
+    /// @return The MultiSense message if this message is an MultiSense message
     fn Message::get_multi_sense(&self) -> MultiSense; alias getMultiSense;
+    /// @return The UhliFun message if this message is an UhliFun message
     fn Message::get_uhli_fun(&self) -> UhliFun; alias getUhliFun;
+    /// @return The WrSlData message if this message is an WrSlData message
     fn Message::get_wr_sl_data(&self) -> WrSlData; alias getWrSlData;
+    /// @return The SlRdData message if this message is an SlRdData message
     fn Message::get_sl_rd_data(&self) -> SlRdData; alias getSlRdData;
+    /// @return The ImmPacket message if this message is an ImmPacket message
     fn Message::get_imm_packet(&self) -> ImmPacket; alias getImmPacket;
+    /// @return The Rep message if this message is an Rep message
     fn Message::get_rep(&self) -> Rep; alias getRep;
+    /// @return The PeerXfer message if this message is an PeerXfer message
     fn Message::get_peer_xfer(&self) -> PeerXfer; alias getPeerXfer;
 });
 
@@ -3541,18 +3666,31 @@ pub trait LackMessageObserver: Send {
     fn on_lack_occurred(&self, lack: LongAck, message: Message);
 }
 
-foreign_callback!(callback LocoNetMessageObserver {
+foreign_callback!(
+/// This interface represents a observer for a loco net message.
+callback LocoNetMessageObserver {
     self_type LocoNetMessageObserver;
+    /// Called by the locoNetConnector when a message occurred.
+    /// @param message The message that occurred
     onMessageOccurred = LocoNetMessageObserver::on_message_occurred(&self, message: Message);
 });
 
-foreign_callback!(callback ExceptionObserver {
+foreign_callback!(
+/// This interface represents a observer for handling exceptions, that occurred while reading or writing to the loco net
+callback ExceptionObserver {
     self_type ExceptionObserver;
+    /// Called by the locoNetConnector when a message occurred.
+    /// @param message The error that occurred
     onExceptionOccurred = ExceptionObserver::on_exception_occurred(&self, message: MessageParseError);
 });
 
-foreign_callback!(callback LackMessageObserver {
+foreign_callback!(
+/// This interface represents a observer for handling lack messages. Lack messages are responses to before messages and immediately follows those
+callback LackMessageObserver {
     self_type LackMessageObserver;
+    /// Called by the locoNetConnector when a lack message occurred.
+    /// @param lack The lack message that was received
+    /// @param message The message the lack response was received for
     onLackOccurred = LackMessageObserver::on_lack_occurred(&self, lack: LongAck, message: Message);
 });
 
@@ -3570,15 +3708,7 @@ pub struct LocoNetConnector {
 }
 
 impl LocoNetConnector {
-    pub fn new_norm(port_name: &str, baud_rate: u32, sending_timeout: u64, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
-        LocoNetConnector::new(port_name, baud_rate, sending_timeout, 5000, FlowControl::Software, message_observer, lack_observer, error_handler)
-    }
-
-    pub fn new_short(port_name: &str, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
-        LocoNetConnector::new(port_name, 115_200, 500, 5000, FlowControl::Software, message_observer, lack_observer, error_handler)
-    }
-
-    //noinspection RsDetachedFile
+    /// Creates a new port
     pub fn new(port_name: &str, baud_rate: u32, sending_timeout: u64, update_cycles: u64, flow_control: FlowControl, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<Self, String> {
         let port = serialport::new(port_name, baud_rate)
             .data_bits(DataBits::Eight)
@@ -3606,10 +3736,12 @@ impl LocoNetConnector {
         }
     }
 
+    /// Returns the ports name as a string
     pub fn get_port_name(&self) -> String {
         self.port.name().unwrap_or(String::from("-"))
     }
 
+    /// Start a new thread that reads new loco net message
     pub fn start_reader(&'static mut self) -> bool {
         let s = Arc::new(Mutex::new(self));
         let new_s = Arc::clone(&s);
@@ -3628,6 +3760,7 @@ impl LocoNetConnector {
         }
     }
 
+    /// Stops the loco net message reader and wait for the stop
     pub fn stop_reader(&mut self) {
         if self.reading_thread.is_some() {
             *self.stop.lock().unwrap() = true;
@@ -3635,6 +3768,7 @@ impl LocoNetConnector {
         }
     }
 
+    /// Handels a message after a it was parsed successfully
     pub fn read(&mut self) {
         let parsed = self.parse();
         if let Err(err) = parsed {
@@ -3844,10 +3978,12 @@ impl LocoNetConnector {
         }
     }
 
+    /// Validates a messages checksum
     fn validate(msg: &[u8]) -> bool {
         return msg.iter().fold(0, |acc, &b| acc ^ b) == 0xFF;
     }
 
+    /// Writes a set of bytes to the loco net by appending the checksum and sending it to the connection
     pub fn write(&mut self, message: Vec<u8>) -> bool {
         if self.reading_thread.is_none() {
             self.error_handler.on_exception_occurred(
@@ -3899,37 +4035,80 @@ impl LocoNetConnector {
         }
     }
 
+    /// Appends the checksum at the end of the message
     pub fn to_message(mut bytes: Vec<u8>) -> Vec<u8> {
         bytes.push(Self::check_sum(&bytes));
 
         bytes
     }
 
+    /// Calculates the checksum for an array of bytes
     fn check_sum(msg: &[u8]) -> u8 {
         0xFF - msg.iter().fold(0, |acc, &b| acc ^ b)
     }
 }
 
-foreign_enum!(enum FlowControl {
+foreign_enum!(
+    /// How to control the data flow to the loco net
+    enum FlowControl {
+        /// Software based flow control (standard for Uhlenbrock loco net systems)
     SOFTWARE = FlowControl::Software,
+        /// Hardware based flow control with cts / rts
     HARDWARE = FlowControl::Hardware,
+        /// No flow control
     NONE = FlowControl::None,
 });
 
-foreign_class!(class LocoNetConnector {
+foreign_class!(
+    /// This class represents a connection to the loco net.
+    class LocoNetConnector {
     self_type LocoNetConnector;
-    constructor LocoNetConnector::new(port_name: &str, baud_rate: u32, sending_timeout: u64, update_cycles: u64, flow_control: FlowControl, message_observer: Box<dyn LocoNetMessageObserver>, lack_observer: Box<dyn LackMessageObserver>, error_handler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
+        /// Creates a new port to the loco net.
+        /// @param portName The connections port name. (You can list all ports by calling PortInfos.getAllPorts())
+        /// @param baudRate The baud rate of the connection
+        /// @param sendingTimeout The time the loco net waits for the loco net to respond to a message, before failing
+        /// @param updateCycles How often the loco net leaves the freeze state to check whether to close the connection, before waiting for new messages
+        /// @param flowControl The flow control to use
+        /// @param messageObserver The observer to call when a new message was received from the loco net
+        /// @param lackObserver The observer to call when an answer message to a before message received
+        /// @param errorHandler The method to call when an error occurred while reading or writing to the connection
+        /// @throws Exception when the loco net connection port can not be accessed.
+    constructor LocoNetConnector::new(portName: &str, baudRate: u32, sendingTimeout: u64, updateCycles: u64, flowControl: FlowControl, messageObserver: Box<dyn LocoNetMessageObserver>, lackObserver: Box<dyn LackMessageObserver>, errorHandler: Box<dyn ExceptionObserver>) -> Result<LocoNetConnector, String>;
     foreign_code r#"
-    public LocoNetConnector(String port_name, long baud_rate, long sending_timeout, LocoNetMessageObserver message_observer, LackMessageObserver lack_observer, ExceptionObserver error_handler) throws Exception {
-        this(port_name, baud_rate, sending_timeout, 5000, FlowControl.SOFTWARE, message_observer, lack_observer, error_handler);
+    /**
+     * Creates a new port to the loco net.<br>
+     * Sets the updateCycles to 5000, and the flow control to software.
+     * @param portName The connections port name. (You can list all ports by calling PortInfos.getAllPorts())
+     * @param baudRate The baud rate of the connection
+     * @param sendingTimeout The time the loco net waits for the loco net to respond to a message, before failing
+     * @param messageObserver The observer to call when a new message was received from the loco net
+     * @param lackObserver The observer to call when an answer message to a before message received
+     * @param errorHandler The method to call when an error occurred while reading or writing to the connection
+     * @throws Exception when the loco net connection port can not be accessed.
+     */
+    public LocoNetConnector(String portName, long baudRate, long sendingTimeout, LocoNetMessageObserver messageObserver, LackMessageObserver lackObserver, ExceptionObserver errorHandler) throws Exception {
+        this(portName, baudRate, sendingTimeout, 5000, FlowControl.SOFTWARE, messageObserver, lackObserver, errorHandler);
     }
 
-    public LocoNetConnector(String port_name, LocoNetMessageObserver message_observer, LackMessageObserver lack_observer, ExceptionObserver error_handler) throws Exception {
-        this(port_name, 115_200, 500, 5000, FlowControl.SOFTWARE, message_observer, lack_observer, error_handler);
+    /**
+     * Creates a new port to the loco net.<br>
+     * Sets the baud rate to 115_200, the sending timeout to 500, the updateCycles to 5000, and the flow control to software.
+     * @param portName The connections port name. (You can list all ports by calling PortInfos.getAllPorts())
+     * @param messageObserver The observer to call when a new message was received from the loco net
+     * @param lackObserver The observer to call when an answer message to a before message received
+     * @param errorHandler The method to call when an error occurred while reading or writing to the connection
+     * @throws Exception when the loco net connection port can not be accessed.
+     */
+    public LocoNetConnector(String portName, LocoNetMessageObserver messageObserver, LackMessageObserver lackObserver, ExceptionObserver errorHandler) throws Exception {
+        this(portName, 115_200, 500, 5000, FlowControl.SOFTWARE, messageObserver, lackObserver, errorHandler);
     }
 "#;
-
+    /// Starts the reader to the loco net connection.
+    /// It creates a new rust threads, which reads incoming bytes from the loco net and sends the received messages to the set observers.
+    /// @return true, if the thread is started successfully, false otherwise. (Only one thread can be started at any time, this method returns false if a running thread exists)
     fn LocoNetConnector::start_reader(&mut self) -> bool; alias startReader;
+    /// Stops the loco net reading thread if one is started and waits until the thread is stopped completely by using rusts thread join.
     fn LocoNetConnector::stop_reader(&mut self); alias stopReader;
+    /// @return The ports name
     fn LocoNetConnector::get_port_name(&self) -> String; alias getPortName;
 });
