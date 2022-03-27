@@ -98,7 +98,7 @@ foreign_class!(
     }
 
     /**
-     * Generates a hash code for this error by hashing its output string.
+     * Generates a hash code for this class.
      * @return The generated hash code
      */
     @Override
@@ -197,7 +197,7 @@ foreign_class!(
     }
 
     /**
-     * Generates a hash code for this address by hashing its output string.
+     * Generates a hash code for this class.
      * @return The generated hash code
      */
     @Override
@@ -358,7 +358,7 @@ foreign_class!(
     }
 
     /**
-     * Generates a hash code for this address by hashing its output string.
+     * Generates a hash code for this class.
      * @return The generated hash code
      */
     @Override
@@ -369,7 +369,7 @@ foreign_class!(
     }
 );
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct SlotArg(u8);
 
 impl SlotArg {
@@ -381,29 +381,75 @@ impl SlotArg {
         self.0
     }
 
-    pub fn set_number(&mut self, number: u8) {
+    pub fn set_slot(&mut self, slot: u8) {
         assert_eq!(
-            number & 0x7F,
+            slot & 0x7F,
             0,
             "number must only use the 7 least significant bits"
         );
-        self.0 = number;
+        self.0 = slot;
     }
 
-    pub fn equals(&self, other: SlotArg) -> bool {
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl PartialEq for SlotArg {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-foreign_class!(class SlotArg {
+impl Display for SlotArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "slot: {}", self.0)
+    }
+}
+
+foreign_class!(
+/// This class represents a slot arg, defined by a slot
+class SlotArg {
     self_type SlotArg;
-    constructor SlotArg::parse(_: u8) -> SlotArg;
+        /// Creates a slot with the given slot number
+        /// @param slot The slots number
+    constructor SlotArg::parse(slot: u8) -> SlotArg;
+        /// @return The slot of this arg
     fn SlotArg::slot(&self) -> u8;
-    fn SlotArg::set_number(&mut self, _: u8); alias setNumber;
-    fn SlotArg::equals(&self, other: SlotArg) -> bool; alias equalsTo;
+        /// Sets the slot to the given number
+        /// @param slot The slot to set
+    fn SlotArg::set_slot(&mut self, slot: u8); alias setSlot;
+        /// Checks whether this slot arg is equal to another object.
+        /// @param other The slot arg to compare to
+        /// @return If this slot arg is equal to the given object
+    fn SlotArg::eq(&self, other: &SlotArg) -> bool; alias equals;
+        /// @return A string in the format "slot: slot"
+    fn SlotArg::to_string(&self) -> String; alias toString;
+    foreign_code r#"
+    /**
+     * Checks whether this slot arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this slot arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SlotArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.slot());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpeedArg {
     Stop,
     EmergencyStop,
@@ -419,6 +465,17 @@ impl SpeedArg {
         }
     }
 
+    pub fn new(spd: u8) -> Self {
+        match spd {
+            0x00 => Self::Stop,
+            _ => Self::Drive(spd)
+        }
+    }
+
+    pub fn new_emergency() -> Self {
+        Self::EmergencyStop
+    }
+
     pub fn spd(&self) -> u8 {
         match *self {
             SpeedArg::Stop => 0x00,
@@ -426,18 +483,106 @@ impl SpeedArg {
             SpeedArg::Drive(spd) => spd + 1
         }
     }
+
+    pub fn get_spd(&self) -> u8 {
+        match *self {
+            SpeedArg::Stop => 0x00,
+            SpeedArg::EmergencyStop => 0x00,
+            SpeedArg::Drive(spd) => spd,
+        }
+    }
+
+    pub fn is_emergency_stop(&self) -> bool {
+        match self {
+            SpeedArg::EmergencyStop => true,
+            _ => false
+        }
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SpeedArg {
+impl Display for SpeedArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpeedArg::Stop => write!(f, "speed: stop"),
+            SpeedArg::EmergencyStop => write!(f, "speed: emergency stop"),
+            SpeedArg::Drive(spd) => write!(f, "speed: {}", spd)
+        }
+    }
+}
+
+foreign_class!(
+    /// This class represents a train speed
+    class SpeedArg {
     self_type SpeedArg;
-    constructor SpeedArg::parse(_: u8) -> SpeedArg;
-    fn SpeedArg::spd(&self) -> u8;
+        /// Sets the speed to the given spd. 0 is a normal stop. To set an emergency stop use SpeedArg()
+        /// @param spd The speed to set this speed arg to
+    constructor SpeedArg::new(spd: u8) -> SpeedArg;
+        /// Creates a new SpeedArg with the spd set to emergency stop.
+    constructor SpeedArg::new_emergency() -> SpeedArg;
+        /// @return The speed of this arg with a value reserved for the emergency stop. 0 - Stop, 1 - Emergency Stop, other - Speed: other-1
+    fn SpeedArg::spd(&self) -> u8; alias calculatedSpeed;
+        /// @return The speed of this arg. All values are the actual speed, an emergency stop and stop value are both represented as 0.
+    fn SpeedArg::get_spd(&self) -> u8; alias spd;
+        /// @return If this speed arg represents an emergency stop for this train
+    fn SpeedArg::is_emergency_stop(&self) -> bool; alias isEmergencyStop;
+        /// @return A string in the format "speed: value" value = stop|emergency stop|speed
+    fn SpeedArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this speed arg is equal to another speed arg
+        /// @param other The speed arg to compare with
+        /// @return If this speed arg is equal to the given speed arg
+    fn SpeedArg::eq(&self, other: &SpeedArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this speed arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this speed arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SlotArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.calculatedSpeed());
+    }
+"#;
 });
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct DirfArg(u8);
 
 impl DirfArg {
+    pub fn new(dir: bool, f0: bool, f1: bool, f2: bool, f3: bool, f4: bool) -> Self {
+        let mut dirf = if dir { 0x20 } else { 0x00 };
+        if f0 {
+            dirf |= 0x10
+        }
+        if f1 {
+            dirf |= 0x01
+        }
+        if f2 {
+            dirf |= 0x02
+        }
+        if f3 {
+            dirf |= 0x04
+        }
+        if f4 {
+            dirf |= 0x08
+        }
+        Self(dirf & 0x3F)
+    }
+
     pub fn parse(dirf: u8) -> Self {
         Self(dirf & 0x3F)
     }
@@ -472,13 +617,17 @@ impl DirfArg {
     pub fn dirf(&self) -> u8 {
         self.0
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
 impl Debug for DirfArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "DirfArg(dir: {}, f0: {}, f1: {}, f2: {}, f3: {}, f4: {})",
+            "dirf: (dir: {}, f0: {}, f1: {}, f2: {}, f3: {}, f4: {})",
             self.dir(),
             self.f(0),
             self.f(1),
@@ -489,16 +638,77 @@ impl Debug for DirfArg {
     }
 }
 
-foreign_class!(class DirfArg {
-    self_type DirfArg;
-    constructor DirfArg::parse(_: u8) -> DirfArg;
-    fn DirfArg::dir(&self) -> bool;
-    fn DirfArg::f(&self, _: u8) -> bool;
-    fn DirfArg::set_dir(&mut self, _: bool); alias setDir;
-    fn DirfArg::set_f(&mut self, _: u8, _: bool); alias setF;
+impl Display for DirfArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "dirf: (dir: {}, f0: {}, f1: {}, f2: {}, f3: {}, f4: {})",
+            self.dir(),
+            self.f(0),
+            self.f(1),
+            self.f(2),
+            self.f(3),
+            self.f(4)
+        )
+    }
+}
+
+foreign_class!(
+    /// This class represents an direction and function arg
+    class DirfArg {
+        self_type DirfArg;
+        /// Creates a new direction and function arg
+        /// @param dir The direction to set
+        /// @param f0 The function 0
+        /// @param f1 The function 1
+        /// @param f2 The function 2
+        /// @param f3 The function 3
+        /// @param f4 The function 4
+        constructor DirfArg::new(dir: bool, f0: bool, f1: bool, f2: bool, f3: bool, f4: bool) -> DirfArg;
+        /// Creates a concentrated function and direction arg
+        /// @param dirf The function and direction arg to set
+        constructor DirfArg::parse(dirf: u8) -> DirfArg;
+        /// @return The set direction. true = forward, false = backward
+        fn DirfArg::dir(&self) -> bool;
+        /// @param fNum The function number to read (0 - 4)
+        /// @return The functions value
+        fn DirfArg::f(&self, fNum: u8) -> bool;
+        /// Sets the direction of this arg
+        /// @param dir The direction to set
+        fn DirfArg::set_dir(&mut self, dir: bool); alias setDir;
+        /// Sets the value f to the function number fNum (0-4)
+        fn DirfArg::set_f(&mut self, fNum: u8, f: bool); alias setF;
+        /// @return A string in the format "dirf: (dir: dir, f0: f0 - f4: f4)"
+        fn DirfArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this dirf arg is equal to another dirf arg
+        /// @param other The dirf arg to compare to
+        /// @return If this dirf arg is equal to the other dirf arg
+        fn DirfArg::eq(&self, other: &DirfArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this dirf arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this dirf arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SlotArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.dir(), this.f((short) 0), this.f((short) 1), this.f((short) 2), this.f((short) 3), this.f((short) 4));
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TrkArg {
     power: bool,
     idle: bool,
@@ -553,23 +763,92 @@ impl TrkArg {
         }
         trk_arg
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class TrkArg {
-    self_type TrkArg;
-    constructor TrkArg::new(_: bool, _: bool, _: bool, _: bool) -> TrkArg;
-    fn TrkArg::power_on(&self) -> bool; alias powerOn;
-    fn TrkArg::track_idle(&self) -> bool; alias trackIdle;
-    fn TrkArg::mlok1(&self) -> bool;
-    fn TrkArg::prog_busy(&self) -> bool; alias progBusy;
+impl Display for TrkArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "trk_arg: (power: {}, idle: {}, mlok1: {}, prog_busy: {})",
+            self.power,
+            self.idle,
+            self.mlok1,
+            self.prog_busy
+        )
+    }
+}
+
+foreign_class!(
+    /// This class holds the track parameters
+    class TrkArg {
+        self_type TrkArg;
+        /// Creates a new track arg
+        /// @param power True = DCC packets are on in master and global power is up
+        /// @param idle Ture = The track is paused (emergency stop)
+        /// @param mlok1 True = This master implements LocoNet 1.1 capability, False = Master is DT200
+        /// @param progBusy True = Programming track in this master is busy
+        constructor TrkArg::new(power: bool, idle: bool, mlok1: bool, progBusy: bool) -> TrkArg;
+        /// @return If dcc packets can be send to track and if the track has energy
+        fn TrkArg::power_on(&self) -> bool; alias powerOn;
+        /// @return If the track is paused by something like an emergency stop
+        fn TrkArg::track_idle(&self) -> bool; alias trackIdle;
+        /// @return If this master implements LocoNet 1.1 capability (true) or this master is DT200 (false)
+        fn TrkArg::mlok1(&self) -> bool;
+        /// @return If the programming track is in state busy
+        fn TrkArg::prog_busy(&self) -> bool; alias progBusy;
+        /// @return A string in the format "trk_arg: (power: power, idle: idle, mlok1: mlok1, prog_busy: prog_busy)"
+        fn TrkArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this trk arg is equal to another trk arg
+        /// @param other The trk arg to compare to
+        /// @return If this trk arg is equal to the other trk arg
+        fn TrkArg::eq(&self, other: &TrkArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this trk arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this trk arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((TrkArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.powerOn(), this.trackIdle(), this.mlok1(), this.progBusy());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SndArg(u8);
 
 impl SndArg {
     pub fn parse(snd: u8) -> Self {
         Self(snd & 0x0F)
+    }
+    pub fn new(f5: bool, f6: bool, f7: bool, f8: bool) -> Self{
+        let mut snd = if f5 { 0x01 } else { 0x00 } as u8;
+        if f6 {
+            snd |= 0x02
+        }
+        if f7 {
+            snd |= 0x04
+        }
+        if f8 {
+            snd |= 0x08
+        }
+        Self(snd)
     }
 
     pub fn f(&self, f_num: u8) -> bool {
@@ -596,13 +875,75 @@ impl SndArg {
     pub fn snd(&self) -> u8 {
         self.0
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SndArg {
-    self_type SndArg;
-    constructor SndArg::parse(_: u8) -> SndArg;
-    fn SndArg::f(&self, _: u8) -> bool;
-    fn SndArg::set_f(&mut self, _: u8, _: bool); alias setF;
+impl Display for SndArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "snd: (f5: {}, f6: {}, f7: {}, f8: {})",
+            self.f(5),
+            self.f(6),
+            self.f(7),
+            self.f(8)
+        )
+    }
+}
+
+
+foreign_class!(
+    /// This arg holds the trains sound function parameters f5 to f8
+    class SndArg {
+        self_type SndArg;
+        /// Sets a new snd arg by parsing the least significant four bits as functions f8 to f5
+        /// @param snd The snd function values as short. The least significant 4 bits are the function values
+        constructor SndArg::parse(snd: u8) -> SndArg;
+        /// Sets a new snd arg by giving the functions values
+        /// @param f5 The f5 function value
+        /// @param f6 The f6 function value
+        /// @param f7 The f7 function value
+        /// @param f8 The f8 function value
+        constructor SndArg::new(f5: bool, f6: bool, f7: bool, f8: bool) -> SndArg;
+        /// Calculates the function value of position fNum. Only values between 5 and 8 (inclusive) are allowed
+        /// @param fNum The position of the value to read (5-8)
+        /// @return The value of the position
+        fn SndArg::f(&self, fNum: u8) -> bool;
+        /// Sets the function value at the position fNum. For fNum only values between 5 and 8 (inclusive) are allowed
+        /// @param fNum The position to set the value at
+        /// @param f The value for the position
+        fn SndArg::set_f(&mut self, fNum: u8, f: bool); alias setF;
+        /// @return A string in the format "snd: (f5: f5, f6: f6, f7: f7, f8: f8)"
+        fn SndArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this snd arg is equal to another snd arg
+        /// @param other The snd arg to compare to
+        /// @return If this snd arg is equal to the other snd arg
+        fn SndArg::eq(&self, other: &SndArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this snd arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this trk snd is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SndArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.f((short) 5), this.f((short) 6), this.f((short) 7), this.f((short) 8));
+    }
+"#;
 });
 
 #[derive(Debug, Copy, Clone)]
