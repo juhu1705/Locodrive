@@ -22,7 +22,7 @@ sourcesJar {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifactId = 'locodrive' as Publication
+            artifactId = 'locodrive'
             from components.java
             pom {
                 name = 'Locodrive'
