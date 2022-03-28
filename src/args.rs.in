@@ -2042,7 +2042,7 @@ impl IdArg {
     }
 }
 
-impl Display for InArg {
+impl Display for IdArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -2065,11 +2065,11 @@ foreign_class!(
         /// @param id The id to set
         fn IdArg::set_id(&mut self, id: u16); alias setId;
         /// @return A string in the format "id: id"
-        fn InArg::to_string(&self) -> String; alias toString;
+        fn IdArg::to_string(&self) -> String; alias toString;
         /// Checks whether this id arg is equal to another id arg
         /// @param other The id arg to compare to
         /// @return If this id arg is equal to the other id arg
-        fn InArg::eq(&self, other: &InArg) -> bool; alias equals;
+        fn IdArg::eq(&self, other: &IdArg) -> bool; alias equals;
         foreign_code r#"
     /**
      * Checks whether this id arg is equal to another object.
