@@ -180,6 +180,7 @@ foreign_class!(
         fn AddressArg::set_address(&mut self, address: u16); alias setAddress;
         /// Checks whether this address is equal to another. To addresses are equal, when their 14 byte addresses are equal.
         /// @param other The other address to check equality with
+        /// @return If this address is equal to the other address given
         fn AddressArg::eq(&self, other: &AddressArg) -> bool; alias equals;
         /// @return A string of the format: 'adr: 14 byte address'
         fn AddressArg::to_string(&self) -> String; alias toString;
@@ -946,15 +947,7 @@ foreign_class!(
 "#;
 });
 
-#[derive(Debug, Copy, Clone)]
-pub struct Stat1Arg {
-    spurge: bool,
-    consist: Consist,
-    state: State,
-    decoder_type: DecoderType,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Consist {
     LogicalMid,
     LogicalTop,
@@ -962,14 +955,20 @@ pub enum Consist {
     Free,
 }
 
-foreign_enum!(enum Consist {
-    LOGICAL_MID = Consist::LogicalMid,
-    LOGICAL_TOP = Consist::LogicalTop,
-    LOGICAL_SUB_MEMBER = Consist::LogicalSubMember,
-    FREE = Consist::Free,
+foreign_enum!(
+    /// The linking status of the slot. Any up consisted slots should be unlinked before usage!
+    enum Consist {
+        /// Slot linked up and downwards
+        LOGICAL_MID = Consist::LogicalMid,
+        /// Slot linked downwards
+        LOGICAL_TOP = Consist::LogicalTop,
+        /// Slot linked upwards
+        LOGICAL_SUB_MEMBER = Consist::LogicalSubMember,
+        /// Slot free for locomotive, no consist indirection or linking
+        FREE = Consist::Free,
 });
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum State {
     InUse,
     Idle,
@@ -977,14 +976,20 @@ pub enum State {
     Free,
 }
 
-foreign_enum!(enum State {
-    IN_USE = State::InUse,
-    IDLE = State::Idle,
-    COMMON = State::Common,
-    FREE = State::Free,
+foreign_enum!(
+    /// The state of the slots loco address
+    enum State {
+        /// Address in slot refreshed and busy
+        IN_USE = State::InUse,
+        /// Address in slot not refreshed
+        IDLE = State::Idle,
+        /// Address in slot refreshed, slot not busy
+        COMMON = State::Common,
+        /// No valid slot data, slot is free
+        FREE = State::Free,
 });
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DecoderType {
     Dcc28,
     Dcc128,
@@ -994,14 +999,30 @@ pub enum DecoderType {
     Speed128,
 }
 
-foreign_enum!(enum DecoderType {
-    DCC_28 = DecoderType::Dcc28,
-    DCC_128 = DecoderType::Dcc128,
-    REGULAR_128 = DecoderType::Regular28,
-    ADR_MOBILE_28 = DecoderType::AdrMobile28,
-    STEP_14 = DecoderType::Step14,
-    SPEED_128 = DecoderType::Speed128,
+foreign_enum!(
+    /// The decoder types encoding of this slot
+    enum DecoderType {
+        /// Allow advanced dcc with 28 speed steps
+        DCC_28 = DecoderType::Dcc28,
+        /// Allow advanced dcc with 128 speed steps
+        DCC_128 = DecoderType::Dcc128,
+        /// 28 speed steps with 3 byte pkt in regular mode
+        REGULAR_28 = DecoderType::Regular28,
+        /// 28 speed steps. Trinary packets for mobile address
+        ADR_MOBILE_28 = DecoderType::AdrMobile28,
+        /// 14 speed steps. No special packets
+        STEP_14 = DecoderType::Step14,
+        /// 128 speed steps. No special packets
+        SPEED_128 = DecoderType::Speed128,
 });
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Stat1Arg {
+    spurge: bool,
+    consist: Consist,
+    state: State,
+    decoder_type: DecoderType,
+}
 
 impl Stat1Arg {
     pub fn new(spurge: bool, consist: Consist, state: State, decoder_type: DecoderType) -> Self {
@@ -1089,18 +1110,74 @@ impl Stat1Arg {
 
         stat1
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Stat1Arg {
-    self_type Stat1Arg;
-    constructor Stat1Arg::new(_: bool, _: Consist, _: State, decoder: DecoderType) -> Stat1Arg;
-    fn Stat1Arg::spurge(&self) -> bool;
-    fn Stat1Arg::consist(&self) -> Consist;
-    fn Stat1Arg::state(&self) -> State;
-    fn Stat1Arg::decoder_type(&self) -> DecoderType; alias decoderType;
+impl Display for Stat1Arg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "stat1: (spurge: {}, consist: {:?}, state: {:?}, decoder_type: {:?})",
+            self.spurge,
+            self.consist,
+            self.state,
+            self.decoder_type
+        )
+    }
+}
+
+foreign_class!(
+    /// Holds status information of a slot
+    class Stat1Arg {
+        self_type Stat1Arg;
+        /// Set the status information for a new slot1 argument
+        /// @param spurge Internal use only. Represents the slot purge en state
+        /// @param consist The consist state of this slot
+        /// @param state The loco address state of this slot
+        /// @param decoder The decoder type of this slot
+        constructor Stat1Arg::new(spurge: bool, consist: Consist, state: State, decoder: DecoderType) -> Stat1Arg;
+        /// @return The slots purge en state. Internal loco net use only.
+        fn Stat1Arg::spurge(&self) -> bool;
+        /// @return The slots consist state
+        fn Stat1Arg::consist(&self) -> Consist;
+        /// @return The slots loco address state
+        fn Stat1Arg::state(&self) -> State;
+        /// @return The slots decoder type
+        fn Stat1Arg::decoder_type(&self) -> DecoderType; alias decoderType;
+        /// @return A string in the format "stat1: (spurge: spurge, consist: consist, state: state, decoder_type: decoder_type)"
+        fn Stat1Arg::to_string(&self) -> String; alias toString;
+        /// Checks whether this stat1 arg is equal to another stat1 arg
+        /// @param other The stat1 arg to compare to
+        /// @return If this stat1 arg is equal to the other stat1 arg
+        fn Stat1Arg::eq(&self, other: &Stat1Arg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this stat1 arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this stat1 arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Stat1Arg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.spurge(), this.consist(), this.state(), this.decoderType());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Stat2Arg {
     has_adv: bool,
     no_id_usage: bool,
@@ -1148,17 +1225,71 @@ impl Stat2Arg {
         }
         stat2
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Stat2Arg {
-    self_type Stat2Arg;
-    constructor Stat2Arg::new(_: bool, _: bool, _: bool) -> Stat2Arg;
-    fn Stat2Arg::has_adv(&self) -> bool; alias hasAdv;
-    fn Stat2Arg::no_id_usage(&self) -> bool; alias noIdUsage;
-    fn Stat2Arg::id_encoded_alias(&self) -> bool; alias idEncodedAlias;
+impl Display for Stat2Arg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "stat2: (has_adv: {}, no_id_usage: {}, id_encoded_alias: {})",
+            self.has_adv,
+            self.no_id_usage,
+            self.id_encoded_alias
+        )
+    }
+}
+
+
+foreign_class!(
+    /// Holds status information for the slot
+    class Stat2Arg {
+        self_type Stat2Arg;
+        /// Creates new status information for the slot
+        /// @param hasAdv If this slot has suppressed adv consist
+        /// @param noIdUsage If this slots expansion ID 1/2 is not in ID usage
+        /// @param idEncodedAlias True = Expansion in ID 1/2. False = This slot is an encoded alias
+        constructor Stat2Arg::new(hasAdv: bool, noIdUsage: bool, idEncodedAlias: bool) -> Stat2Arg;
+        /// @return If this slot has suppressed adv consist
+        fn Stat2Arg::has_adv(&self) -> bool; alias hasAdv;
+        /// @return If this slots expansion ID 1/2 is not in ID usage
+        fn Stat2Arg::no_id_usage(&self) -> bool; alias noIdUsage;
+        /// @return True = Expansion in ID 1/2, False = This slot is an encoded alias
+        fn Stat2Arg::id_encoded_alias(&self) -> bool; alias idEncodedAlias;
+        /// @return A string in the format "stat2: (has_adv: has_adv, no_id_usage: no_id_usage, id_encoded_alias: id_encoded_alias)"
+        fn Stat2Arg::to_string(&self) -> String; alias toString;
+        /// Checks whether this stat2 arg is equal to another stat2 arg
+        /// @param other The stat2 arg to compare to
+        /// @return If this stat2 arg is equal to the other stat2 arg
+        fn Stat2Arg::eq(&self, other: &Stat2Arg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this stat2 arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this stat2 arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Stat2Arg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.hasAdv(), this.noIdUsage(), this.idEncodedAlias());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LopcArg(u8);
 
 impl LopcArg {
@@ -1171,19 +1302,67 @@ impl LopcArg {
     }
 
     pub fn set_lopc(&mut self, lopc: u8) {
-        assert_eq!(lopc & 0x40, 0, "7th least significant bit must be 0");
-        self.0 = lopc
+        self.0 = lopc & !0x40
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class LopcArg {
-    self_type LopcArg;
-    constructor LopcArg::parse(_: u8) -> LopcArg;
-    fn LopcArg::lopc(&self) -> u8;
-    fn LopcArg::set_lopc(&mut self, _: u8); alias setLopc;
+impl Display for LopcArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "lopc: {}",
+            self.0,
+        )
+    }
+}
+
+foreign_class!(
+    /// Copy of the opcode with 7th bit set to 0
+    class LopcArg {
+        self_type LopcArg;
+        /// Creates an opcode copy with the given opcode. The seventh bit will be set to zero.
+        /// @param lopc The opcode to set
+        constructor LopcArg::parse(lopc: u8) -> LopcArg;
+        /// @return The opcode with the seventh bit set to zero
+        fn LopcArg::lopc(&self) -> u8;
+        /// Sets the opcode copy to the given lopc argument.
+        /// @param lopc The param to set. The seventh bit will be set to zero
+        fn LopcArg::set_lopc(&mut self, lopc: u8); alias setLopc;
+        /// @return A string in the format "lopc: lopc"
+        fn LopcArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this lopc arg is equal to another lopc arg
+        /// @param other The lopc arg to compare to
+        /// @return If this lopc arg is equal to the other lopc arg
+        fn LopcArg::eq(&self, other: &LopcArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this lopc arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this lopc arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LopcArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.lopc());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ack1Arg(u8);
 
 impl Ack1Arg {
@@ -1199,7 +1378,7 @@ impl Ack1Arg {
         self.0 != 0
     }
 
-    pub fn is_busy(&self) -> bool {
+    pub fn failed(&self) -> bool {
         self.0 == 0
     }
 
@@ -1214,57 +1393,166 @@ impl Ack1Arg {
     pub fn set_code(&mut self, code: u8) {
         self.0 = code
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Ack1Arg {
-    self_type Ack1Arg;
-    constructor Ack1Arg::parse(_: u8) -> Ack1Arg;
-    fn Ack1Arg::ack1(&self) -> u8;
-    fn Ack1Arg::success(&self) -> bool;
-    fn Ack1Arg::is_busy(&self) -> bool; alias isBusy;
-    fn Ack1Arg::accepted(&self) -> bool;
-    fn Ack1Arg::accepted_blind(&self) -> bool; alias acceptedBlind;
-    fn Ack1Arg::set_code(&mut self, _: u8); alias setCode;
+impl Display for Ack1Arg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.failed() {
+            write!(
+                f,
+                "ack1: (failed, ack: {})",
+                self.0,
+            )
+        } else if self.accepted() {
+            write!(
+                f,
+                "ack1: (accepted, ack: {})",
+                self.0,
+            )
+        } else if self.accepted_blind() {
+            write!(
+                f,
+                "ack1: (accepted_blind, ack: {})",
+                self.0,
+            )
+        } else {
+            write!(
+                f,
+                "ack1: (success, ack: {})",
+                self.0,
+            )
+        }
+    }
+}
+
+foreign_class!(
+    /// This is a response message. This message follows immediately the message the response is send for
+    class Ack1Arg {
+        self_type Ack1Arg;
+        /// Creates a new response with the given response value
+        /// @param ack1 The response value.
+        /// ack1 = 0: failed
+        /// ack1 != 0: success
+        /// ack1 = 1: accepted
+        /// ack1 = 0x40: accepted_blind
+        constructor Ack1Arg::parse(ack1: u8) -> Ack1Arg;
+        /// @return The response value
+        /// ack1 = 0: failed
+        /// ack1 != 0: success
+        /// ack1 = 1: accepted
+        /// ack1 = 0x40: accepted_blind
+        fn Ack1Arg::ack1(&self) -> u8;
+        /// @return If the leading request was successful
+        fn Ack1Arg::success(&self) -> bool;
+        /// @return If the leading request has failed
+        fn Ack1Arg::failed(&self) -> bool;
+        /// @return If the leading request was accepted
+        fn Ack1Arg::accepted(&self) -> bool;
+        /// @return If the leading request was accepted bling
+        fn Ack1Arg::accepted_blind(&self) -> bool; alias acceptedBlind;
+        /// Sets the response value to the given code.
+        /// @param code The code to set the response value to
+        /// ack1 = 0: failed
+        /// ack1 != 0: success
+        /// ack1 = 1: accepted
+        /// ack1 = 0x40: accepted_blind
+        fn Ack1Arg::set_code(&mut self, code: u8); alias setCode;
+        /// @return A string in the format "ack1: (status, ack: ack)"
+        fn Ack1Arg::to_string(&self) -> String; alias toString;
+        /// Checks whether this ack1 arg is equal to another ack1 arg
+        /// @param other The ack1 arg to compare to
+        /// @return If this ack1 arg is equal to the other ack1 arg
+        fn Ack1Arg::eq(&self, other: &Ack1Arg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this ack1 arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this ack1 arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Ack1Arg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.ack1());
+    }
+"#;
 });
 
-#[derive(Copy, Clone)]
-pub struct InArg {
-    address: u16,
-    source_type: SourceType,
-    state: bool,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SourceType {
-    Aux,
+    Ds54Aux,
     Switch,
 }
 
-foreign_enum!(enum SourceType {
-    AUX = SourceType::Aux,
-    SWITCH = SourceType::Switch,
+foreign_enum!(
+    /// The inputs source type
+    enum SourceType {
+        /// DS45 for in args and aux for sn args
+        DS54_AUX = SourceType::Ds54Aux,
+        /// Input from a switch
+        SWITCH = SourceType::Switch,
 });
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SensorLevel {
+    High,
+    Low,
+}
+
+foreign_enum!(
+    /// The sensors level
+    enum SensorLevel {
+        /// High sensor level
+        HIGH = SensorLevel::High,
+        /// Low sensor level
+        LOW = SensorLevel::Low,
+});
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct InArg {
+    address: u16,
+    input_source: SourceType,
+    sensor_level: SensorLevel,
+    control_bit: bool,
+}
+
 impl InArg {
-    pub fn new(address: u16, source_type: SourceType, state: bool) -> Self {
-        InArg { address, source_type, state }
+    pub fn new(address: u16, input_source: SourceType, sensor_level: SensorLevel, control_bit: bool) -> Self {
+        InArg { address: address & 0x07FF, input_source, sensor_level, control_bit }
     }
 
     pub fn parse(in1: u8, in2: u8) -> Self {
         let mut address = in1 as u16;
         address |= (in2 as u16 & 0x0F) << 7;
 
-        let source_type = if in2 & 0x20 == 0 {
-            SourceType::Aux
+        let input_source = if in2 & 0x20 == 0 {
+            SourceType::Ds54Aux
         } else {
             SourceType::Switch
         };
 
-        let state = (in2 & 0x10) != 0;
+        let sensor_level = if (in2 & 0x10) != 0 {
+            SensorLevel::High
+        } else { SensorLevel::Low };
+        let control_bit = (in2 & 0x40) != 0;
         Self {
             address,
-            source_type,
-            state,
+            input_source,
+            sensor_level,
+            control_bit,
         }
     }
 
@@ -1273,20 +1561,24 @@ impl InArg {
     }
 
     pub fn address_ds54(&self) -> u16 {
-        self.address << 1
-            | if self.source_type() == SourceType::Switch {
+        (self.address << 1)
+            | if self.input_source == SourceType::Switch {
             1
         } else {
             0
         }
     }
 
-    pub fn source_type(&self) -> SourceType {
-        self.source_type
+    pub fn input_source(&self) -> SourceType {
+        self.input_source
     }
 
-    pub fn state(&self) -> bool {
-        self.state
+    pub fn sensor_level(&self) -> SensorLevel {
+        self.sensor_level
+    }
+
+    pub fn control_bit(&self) -> bool {
+        self.control_bit
     }
 
     pub fn set_address(&mut self, address: u16) {
@@ -1304,20 +1596,24 @@ impl InArg {
             0,
             "address must only use the 12 least significant bits"
         );
-        self.set_source_type(if address_ds54 & 1 == 0 {
-            SourceType::Aux
+        self.input_source = if address_ds54 & 1 == 0 {
+            SourceType::Ds54Aux
         } else {
             SourceType::Switch
-        });
+        };
         self.set_address(address_ds54 >> 1);
     }
 
-    pub fn set_source_type(&mut self, source_type: SourceType) {
-        self.source_type = source_type;
+    pub fn set_input_source(&mut self, input_source: SourceType) {
+        self.input_source = input_source;
     }
 
-    pub fn set_state(&mut self, state: bool) {
-        self.state = state;
+    pub fn set_sensor_level(&mut self, sensor_level: SensorLevel) {
+        self.sensor_level = sensor_level;
+    }
+
+    pub fn set_control_bit(&mut self, control_bit: bool) {
+        self.control_bit = control_bit;
     }
 
     pub fn in1(&self) -> u8 {
@@ -1326,14 +1622,35 @@ impl InArg {
 
     pub fn in2(&self) -> u8 {
         let mut in2 = ((self.address >> 7) as u8) & 0x0F;
-        in2 |= match self.source_type {
-            SourceType::Aux => 0x00,
+        in2 |= match self.input_source {
+            SourceType::Ds54Aux => 0x00,
             SourceType::Switch => 0x20
         };
-        if self.state {
-            in2 |= 0x10;
+        in2 |= match self.sensor_level {
+            SensorLevel::High => 0x10,
+            SensorLevel::Low => 0x00
+        };
+        if self.control_bit {
+            in2 |= 0x40;
         }
         in2
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl Display for InArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "in: (address: {}, input_source: {:?}, sensor_level: {:?}, control_bit: {})",
+            self.address,
+            self.input_source,
+            self.sensor_level,
+            self.control_bit
+        )
     }
 }
 
@@ -1341,55 +1658,118 @@ impl Debug for InArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "InArg {{ address: {:?} (DS54: {:?}), source_type: {:?}, state: {:?} }}",
-            self.address(),
-            self.address_ds54(),
-            self.source_type(),
-            self.state()
+            "in_arg: (address: {}, input_source: {:?}, sensor_level: {:?}, control_bit: {})",
+            self.address,
+            self.input_source,
+            self.sensor_level,
+            self.control_bit
         )
     }
 }
 
-foreign_class!(class InArg {
-    self_type InArg;
-    constructor InArg::new(_: u16, _: SourceType, _: bool) -> InArg;
-    fn InArg::address(&self) -> u16;
-    fn InArg::address_ds54(&self) -> u16; alias addressDs54;
-    fn InArg::source_type(&self) -> SourceType; alias sourceType;
-    fn InArg::state(&self) -> bool;
-    fn InArg::set_address(&mut self, _: u16); alias setAddress;
-    fn InArg::set_address_ds54(&mut self, _: u16); alias setAddressDs54;
-    fn InArg::set_source_type(&mut self, _: SourceType); alias setSourceType;
-    fn InArg::set_state(&mut self, _: bool); alias setState;
+foreign_class!(
+    /// This class represents general sensor input
+    class InArg {
+        self_type InArg;
+        /// Creates new sensor input
+        /// @param address 11 bit address (least significant bits)
+        /// @param inputSource The input source of the sensor
+        /// @param sensorLevel The sensors level (Low / High)
+        /// @param controlBit Preserved for future use
+        constructor InArg::new(address: u16, inputSource: SourceType, sensorLevel: SensorLevel, controlBit: bool) -> InArg;
+        /// @return The address of this in arg
+        fn InArg::address(&self) -> u16;
+        /// @return This sensors input source
+        fn InArg::input_source(&self) -> SourceType; alias inputSource;
+        /// @return The sensors level
+        fn InArg::sensor_level(&self) -> SensorLevel; alias sensorLevel;
+        /// @return The sensors message control bit which is reserved for future use
+        fn InArg::control_bit(&self) -> bool; alias controlBit;
+        /// Sets the address to the given 11 bit address value
+        /// @param address 11 bit long address
+        fn InArg::set_address(&mut self, address: u16); alias setAddress;
+        /// Sets the input source to the given value
+        /// @param inputSource The input source of this sensor
+        fn InArg::set_input_source(&mut self, inputSource: SourceType); alias setInputSource;
+        /// Sets the sensors level to the given value
+        /// @param sensorLevel The sensor level of this sensor
+        fn InArg::set_sensor_level(&mut self, sensorLevel: SensorLevel); alias setSensorLevel;
+        /// Sets the control bit to the given value
+        /// @param controlBit The control bit of this sensor, preserved for future use!
+        fn InArg::set_control_bit(&mut self, controlBit: bool); alias setControlBit;
+        /// @return A string in the format "in: (address: address, input_source: input_source, sensor_level: sensor_level, control_bit: control_bit)"
+        fn InArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this in arg is equal to another in arg
+        /// @param other The in arg to compare to
+        /// @return If this in arg is equal to the other in arg
+        fn InArg::eq(&self, other: &InArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this in arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this in arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((InArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.address(), this.inputSource(), this.sensorLevel(), this.controlBit());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct SnArg {
     address: u16,
     format: bool,
     c: bool,
     t: bool,
+    input_source: SourceType,
+    sensor_level: SensorLevel,
 }
 
 impl SnArg {
-    pub fn new(address: u16, format: bool, c: bool, t: bool) -> Self {
-        SnArg { address, format, c, t }
+    pub fn new_c_t(address: u16, c: bool, t: bool) -> Self {
+        SnArg { address: address & 0x07FF, format: false, c, t, input_source: SourceType::Ds54Aux, sensor_level: SensorLevel::Low }
+    }
+
+    pub fn new_f(address: u16, input_source: SourceType, sensor_level: SensorLevel) -> Self {
+        SnArg { address: address & 0x07FF, format: true, c: false, t: false, input_source, sensor_level }
     }
 
     pub fn parse(sn1: u8, sn2: u8) -> Self {
         let mut address = sn1 as u16;
         address |= (sn2 as u16 & 0x0F) << 7;
 
-        let format = sn2 & 0x20 == 0x20;
+        let format = sn2 & 0x40 == 0x40;
 
-        let c = sn2 & 0x40 == 0x40;
-        let t = sn2 & 0x80 == 0x80;
+        let c = sn2 & 0x10 == 0x10;
+        let t = sn2 & 0x20 == 0x20;
+
+        let input_source = if c {
+            SourceType::Switch
+        } else { SourceType::Ds54Aux };
+
+        let sensor_level = if t {
+            SensorLevel::High
+        } else { SensorLevel::Low };
 
         SnArg {
             address,
             format,
             c,
             t,
+            input_source,
+            sensor_level
         }
     }
 
@@ -1401,28 +1781,58 @@ impl SnArg {
         self.format
     }
 
-    pub fn c(&self) -> bool {
-        self.c
+    pub fn c_u8(&self) -> Result<u8, String> {
+        if !self.format {
+            Ok(self.c as u8)
+        } else { Err("Wrong sn format".to_owned()) }
     }
 
-    pub fn t(&self) -> bool {
-        self.t
+    pub fn t_u8(&self) -> Result<u8, String> {
+        if !self.format { Ok(self.t as u8) } else { Err("Wrong sn format".to_owned()) }
+    }
+
+    pub fn input_source(&self) -> Result<SourceType, String> {
+        if self.format { Ok(self.input_source) } else { Err("Wrong sn format".to_owned()) }
+    }
+
+    pub fn sensor_level(&self) -> Result<SensorLevel, String> {
+        if self.format { Ok(self.sensor_level) } else { Err("Wrong sn format".to_owned()) }
     }
 
     pub fn set_address(&mut self, address: u16) {
-        self.address = address;
+        self.address = address & 0x07FF;
     }
 
     pub fn set_format(&mut self, format: bool) {
         self.format = format;
     }
 
-    pub fn set_c(&mut self, c: bool) {
+    pub fn set_c(&mut self, c: bool) -> Result<(), String> {
+        if self.format { return Err("Wrong sn format".to_owned()); }
+
         self.c = c;
+        Ok(())
     }
 
-    pub fn set_t(&mut self, t: bool) {
+    pub fn set_t(&mut self, t: bool) -> Result<(), String> {
+        if self.format { return Err("Wrong sn format".to_owned()); }
+
         self.t = t;
+        Ok(())
+    }
+
+    pub fn set_input_source(&mut self, input_source: SourceType) -> Result<(), String> {
+        if !self.format { return Err("Wrong sn format".to_owned()); }
+
+        self.input_source = input_source;
+        Ok(())
+    }
+
+    pub fn set_sensor_level(&mut self, sensor_level: SensorLevel) -> Result<(), String> {
+        if !self.format { return Err("Wrong sn format".to_owned()); }
+
+        self.sensor_level = sensor_level;
+        Ok(())
     }
 
     pub fn sn1(&self) -> u8 {
@@ -1432,53 +1842,256 @@ impl SnArg {
     pub fn sn2(&self) -> u8 {
         let mut sn2 = (self.address >> 7) as u8 & 0x0F;
         if self.format {
-            sn2 |= 0x20;
+            sn2 |= 0x40 |
+                match self.input_source { SourceType::Ds54Aux => 0x00, SourceType::Switch => 0x20 } |
+                match self.sensor_level { SensorLevel::High => 0x10, SensorLevel::Low => 0x00 }
+        } else {
+            if self.c {
+                sn2 |= 0x20;
+            }
+            if self.t {
+                sn2 |= 0x10;
+            }
         }
-        if self.c {
-            sn2 |= 0x40;
-        }
-        if self.t {
-            sn2 |= 0x80;
-        }
+
         sn2
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class SnArg {
-    self_type SnArg;
-    constructor SnArg::new(_: u16, _: bool, _: bool, _: bool) -> SnArg;
-    fn SnArg::address(&self) -> u16;
-    fn SnArg::format(&self) -> bool;
-    fn SnArg::c(&self) -> bool;
-    fn SnArg::t(&self) -> bool;
-    fn SnArg::set_address(&mut self, _: u16); alias setAddress;
-    fn SnArg::set_format(&mut self, _: bool); alias setFormat;
-    fn SnArg::set_c(&mut self, _: bool); alias setC;
-    fn SnArg::set_t(&mut self, _: bool);alias setT;
-});
+impl PartialEq for SnArg {
+    fn eq(&self, other: &Self) -> bool {
+        if !(self.format == other.format && self.address == other.address) {
+            return false;
+        }
 
-#[derive(Debug, Copy, Clone)]
-pub struct IdArg(u8, u8);
+        if self.format {
+            self.input_source == other.input_source && self.sensor_level == other.sensor_level
+        } else {
+            self.t == other.t && self.c == other.c
+        }
+    }
+}
 
-impl IdArg {
-    pub fn parse(id1: u8, id2: u8) -> Self {
-        IdArg(id1 & 0xF7, id2 & 0xF7)
+impl Display for SnArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.format {
+            write!(
+                f,
+                "sn: (address: {}, input_source: {:?}, sensor_level: {:?})",
+                self.address,
+                self.input_source,
+                self.sensor_level,
+            )
+        } else {
+            write!(
+                f,
+                "sn: (address: {}, c: {:?}, t: {:?})",
+                self.address,
+                self.c,
+                self.t,
+            )
+        }
+    }
+}
+
+foreign_class!(
+    /// This class represents turnout sensor input
+    class SnArg {
+        self_type SnArg;
+        /// Creates new turnout sensor input with close output and thrown output on off information
+        /// @param address 11 bit turnout sensors address
+        /// @param c If the output is closed (false = off, true = on)
+        /// @param t If the output is thrown (false = off, true = on)
+        constructor SnArg::new_c_t(address: u16, c: bool, t: bool) -> SnArg;
+        /// Creates new turnout sensor input with input source and sensor level information
+        /// @param address 11 bit turnout sensors address
+        /// @param inputSource The input source of the sensor
+        /// @param sensorLevel The sensors level (Low / High)
+        constructor SnArg::new_f(address: u16, inputSource: SourceType, sensorLevel: SensorLevel) -> SnArg;
+        /// @return The sensors 11 bit address
+        fn SnArg::address(&self) -> u16;
+        /// @return The format of this sn message. true = input_source-sensor_level format, false = c-t format
+        fn SnArg::format(&self) -> bool;
+        /// @return If the output is closed
+        /// @throws Exception If the format of this sn arg is true
+        private fn SnArg::c_u8(&self) -> Result<u8, String>;
+        /// @return If the output is thrown
+        /// @throws Exception If the format of this sn arg is true
+        private fn SnArg::t_u8(&self) -> Result<u8, String>;
+        /// @return This sensors input source
+        /// @throws Exception If the format of this sn arg is false
+        fn SnArg::input_source(&self) -> Result<SourceType, String>; alias inputSource;
+        /// @return This sensors level
+        /// @throws Exception If the format of this sn arg is false
+        fn SnArg::sensor_level(&self) -> Result<SensorLevel, String>; alias sensorLevel;
+        /// Sets the address to the new 11 least significant bits of the given address
+        /// @param address The value to set the address to
+        fn SnArg::set_address(&mut self, address: u16); alias setAddress;
+        /// Sets the format to the given format. Changing this may cause unexpected behaviour
+        /// @param format The format to set
+        fn SnArg::set_format(&mut self, format: bool); alias setFormat;
+        /// Sets if the output of this sensor is closed
+        /// @param c If the output of this sensor is closed
+        /// @throws Exception If the format of this sn arg is true
+        fn SnArg::set_c(&mut self, c: bool) -> Result<(), String>; alias setC;
+        /// Sets if the output of this sensor is thrown
+        /// @param t If the output of this sensor is thrown
+        /// @throws Exception If the format of this sn arg is true
+        fn SnArg::set_t(&mut self, t: bool) -> Result<(), String>; alias setT;
+        /// Sets the input source to the given value
+        /// @param inputSource The input source of this sensor
+        /// @throws Exception If the format of this sn arg is false
+        fn SnArg::set_input_source(&mut self, inputSource: SourceType) -> Result<(), String>; alias setInputSource;
+        /// Sets the sensors level to the given value
+        /// @param sensorLevel The sensor level of this sensor
+        /// @throws Exception If the format of this sn arg is false
+        fn SnArg::set_sensor_level(&mut self, sensorLevel: SensorLevel) -> Result<(), String>; alias setSensorLevel;
+        /// @return A string in the format "sn: (address: address, input_source: input_source, sensor_level: sensor_level)" when the format of this sn arg is true else "sn: (address: address, c: c, t: t)"
+        fn SnArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this sn arg is equal to another sn arg
+        /// @param other The sn arg to compare to
+        /// @return If this sn arg is equal to the other sn arg
+        fn SnArg::eq(&self, other: &SnArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this sn arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this sn arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SnArg) o);
     }
 
-    pub fn id1(&self) -> u8 {
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        if(this.format()) {
+            try {
+                return java.util.Objects.hash(this.address(), this.format(), this.inputSource(), this.sensorLevel());
+            } catch (Exception ignored) {
+                // Never reached
+            }
+        } else {
+            try {
+                return java.util.Objects.hash(this.address(), this.format(), this.c(), this.t());
+            } catch (Exception ignored) {
+                // Never reached
+            }
+        }
+        return java.util.Objects.hash(this.toString());
+    }
+
+    /**
+     * @return If closed output is on.
+     * @throws Exception If the format is true
+     */
+    public boolean c() throws Exception {
+        return this.c_u8() != 0;
+    }
+
+    /**
+     * @return If thrown output is on.
+     * @throws Exception If the format is true
+     */
+    public boolean t() throws Exception {
+        return this.t_u8() != 0;
+    }
+"#;
+});
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct IdArg(u16);
+
+impl IdArg {
+    pub fn new(id: u16) -> Self {
+        IdArg(id & 0x3FFF)
+    }
+
+    pub fn parse(id1: u8, id2: u8) -> Self {
+        IdArg((((id2 & 0x7F) as u16) << 7) | ((id1 & 0x7F) as u16))
+    }
+
+    pub fn id(&self) -> u16 {
         self.0
     }
 
+    pub fn id1(&self) -> u8 {
+        self.0 as u8 & 0x7F
+    }
+
     pub fn id2(&self) -> u8 {
-        self.1
+        (self.0 >> 7) as u8 & 0x7F
+    }
+
+    pub fn set_id(&mut self, id: u16) {
+        self.0 = id & 0x3FFF
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class IdArg {
-    self_type IdArg;
-    constructor IdArg::parse(_: u8, _: u8) -> IdArg;
-    fn IdArg::id1(&self) -> u8;
-    fn IdArg::id2(&self) -> u8;
+impl Display for InArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "id: {}",
+            self.0
+        )
+    }
+}
+
+foreign_class!(
+    /// Represents an id. This is the PC id if stat2 arg is an encoded alias
+    class IdArg {
+        self_type IdArg;
+        /// Creates a new id with the least significant 14 bits of the given id
+        /// @param id The id to set
+        constructor IdArg::new(id: u16) -> IdArg;
+        /// @return The id hold by this id arg
+        fn IdArg::id(&self) -> u16;
+        /// Sets the id of this arg to the least significant 14 bits of the given id
+        /// @param id The id to set
+        fn IdArg::set_id(&mut self, id: u16); alias setId;
+        /// @return A string in the format "id: id"
+        fn InArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this id arg is equal to another id arg
+        /// @param other The id arg to compare to
+        /// @return If this id arg is equal to the other id arg
+        fn InArg::eq(&self, other: &InArg) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this id arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this id arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((IdArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.id());
+    }
+"#;
 });
 
 #[derive(Debug, Copy, Clone)]
