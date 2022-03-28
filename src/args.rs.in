@@ -2094,82 +2094,125 @@ foreign_class!(
 "#;
 });
 
-#[derive(Debug, Copy, Clone)]
-pub struct MTypeArg(u8);
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MultiSenseArg{ m_type: u8, present: bool, board_address: u8, zone: u8 }
 
-impl MTypeArg {
-    pub fn parse(m_type: u8) -> Self {
-        MTypeArg(m_type)
+impl MultiSenseArg {
+
+    pub fn new(m_type: u8, present: bool, board_address: u8, zone: u8) -> Self {
+        Self {
+            m_type: m_type & 0x07,
+            present,
+            board_address,
+            zone
+        }
+    }
+
+    pub fn parse(m_high: u8, zas: u8) -> Self {
+        let m_type = 0xE0 & m_high >> 5;
+        let present = 0x10 & m_high == 0x10;
+        let board_address = ((0x0F & m_high) << 4) | ((zas & 0xF0) >> 4);
+        let zone = 0x0F & zas;
+
+        MultiSenseArg {
+            m_type,
+            present,
+            board_address,
+            zone
+        }
     }
 
     pub fn m_type(&self) -> u8 {
-        self.0
+        self.m_type
     }
-}
 
-foreign_class!(class MTypeArg {
-    self_type MTypeArg;
-    constructor MTypeArg::parse(_: u8) -> MTypeArg;
-    fn MTypeArg::m_type(&self) -> u8; alias mType;
-});
+    pub fn present(&self) -> bool {
+        self.present
+    }
 
-#[derive(Debug, Copy, Clone)]
-pub struct ZasArg(u8);
+    pub fn board_address(&self) -> u8 {
+        self.board_address
+    }
 
-impl ZasArg {
-    pub fn parse(zone_and_section: u8) -> Self {
-        ZasArg(zone_and_section)
+    pub fn zone(&self) -> u8 {
+        self.zone
     }
 
     pub fn zas(&self) -> u8 {
-        self.0
+        self.zone | ((self.board_address & 0x0F) << 4)
+    }
+
+    pub fn m_high(&self) -> u8 {
+        ((self.board_address & 0xF0) >> 4) | ((self.m_type & 0x07) << 5) | if self.present { 0x10 } else { 0x00 }
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class ZasArg {
-    self_type ZasArg;
-    constructor ZasArg::parse(_: u8) -> ZasArg;
-    fn ZasArg::zas(&self) -> u8;
-});
-
-#[derive(Debug, Copy, Clone)]
-pub struct SenseAddrArg(u16);
-
-impl SenseAddrArg {
-    pub fn new(address: u16) -> Self {
-        SenseAddrArg(address)
-    }
-
-    pub fn parse(addr1: u8, addr2: u8) -> Self {
-        let mut address = addr1 as u16;
-        address |= (addr2 as u16) << 7;
-
-        SenseAddrArg(address)
-    }
-
-    pub fn address(&self) -> u16 {
-        self.0
-    }
-
-    pub fn addr1(&self) -> u8 {
-        self.0 as u8 & 0x7F
-    }
-
-    pub fn addr2(&self) -> u8 {
-        (self.0 >> 7) as u8
+impl Display for MultiSenseArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "multi_sense_arg: (m_type: {}, present: {}, board_address: {}, zone: {})",
+            self.m_type,
+            self.present,
+            self.board_address,
+            self.zone
+        )
     }
 }
 
-foreign_class!(class SenseAddrArg {
-    self_type SenseAddrArg;
-    constructor SenseAddrArg::new(_: u16) -> SenseAddrArg;
-    constructor SenseAddrArg::parse(_: u8, _: u8) -> SenseAddrArg;
-    fn SenseAddrArg::address(&self) -> u16;
-    fn SenseAddrArg::addr1(&self) -> u8;
-    fn SenseAddrArg::addr2(&self) -> u8;
+foreign_class!(
+    /// The type arg for the multi sense message
+    class MultiSenseArg {
+        self_type MultiSenseArg;
+        /// Creates a new MTypeArg with mType as type
+        /// @param mType The multi sense message type (3 bit)
+        /// @param present ?If the sending device is present?
+        /// @param boardAddress The boards address
+        /// @param zone The multi sense zone
+        constructor MultiSenseArg::new(mType: u8, present: bool, boardAddress: u8, zone: u8) -> MultiSenseArg;
+        /// @return The multi sense message type
+        fn MultiSenseArg::m_type(&self) -> u8; alias mType;
+        /// @return ?If the sender is present?
+        fn MultiSenseArg::present(&self) -> bool;
+        /// @return The boards address
+        fn MultiSenseArg::board_address(&self) -> u8; alias boardAddress;
+        /// @return The zone
+        fn MultiSenseArg::zone(&self) -> u8;
+        /// @return A string in the format "multi_sense_arg: (m_type: m_type, present: present, board_address: board_address, zone: zone)"
+        fn MultiSenseArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this multi sense arg is equal to another multi sense arg
+        /// @param other The multi sense arg to compare to
+        /// @return If this multi sense arg is equal to the other multi sense arg
+        fn MultiSenseArg::eq(&self, other: &MultiSenseArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this multi sense arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this multi sense arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((MultiSenseArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.mType(), this.zone(), this.present(), this.boardAddress());
+    }
+"#;
 });
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct FunctionArg(u8, u8);
 
 impl FunctionArg {
@@ -2204,6 +2247,7 @@ impl FunctionArg {
         }
     }
 
+    // TODO: Set f as function real number
     pub fn set_f(&mut self, f_num: u8, value: bool) {
         assert!(f_num <= 4, "f must be lower than or equal to 4");
         let mask = 1 << (f_num - 9);
@@ -2221,13 +2265,17 @@ impl FunctionArg {
     pub fn function(&self) -> u8 {
         self.1
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-impl Debug for FunctionArg {
+impl Display for FunctionArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "DirfArg(f9: {}, f10: {}, f11: {}, f12: {}, f13: {}, f14: {}, f15: {}, f16: {}, f17: {}, f18: {}, f19: {}, f20: {}, f21: {}, f22: {}, f23: {}, f24: {}, f25: {}, f26: {}, f27: {}, f28: {})",
+            "function_arg: (f9: {}, f10: {}, f11: {}, f12: {}, f13: {}, f14: {}, f15: {}, f16: {}, f17: {}, f18: {}, f19: {}, f20: {}, f21: {}, f22: {}, f23: {}, f24: {}, f25: {}, f26: {}, f27: {}, f28: {})",
             self.f(9),
             self.f(10),
             self.f(11),
@@ -2252,13 +2300,84 @@ impl Debug for FunctionArg {
     }
 }
 
-foreign_class!(class FunctionArg {
-    self_type FunctionArg;
-    constructor FunctionArg::new(_: u8) -> FunctionArg;
-    constructor FunctionArg::parse(_: u8, _: u8) -> FunctionArg;
-    fn FunctionArg::group(&self) -> u8;
-    fn FunctionArg::f(&self, _: u8) -> bool;
-    fn FunctionArg::set_f(&mut self, _: u8, _: bool); alias setF;
+impl Debug for FunctionArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "function_arg: (f9: {}, f10: {}, f11: {}, f12: {}, f13: {}, f14: {}, f15: {}, f16: {}, f17: {}, f18: {}, f19: {}, f20: {}, f21: {}, f22: {}, f23: {}, f24: {}, f25: {}, f26: {}, f27: {}, f28: {})",
+            self.f(9),
+            self.f(10),
+            self.f(11),
+            self.f(12),
+            self.f(13),
+            self.f(14),
+            self.f(15),
+            self.f(16),
+            self.f(17),
+            self.f(18),
+            self.f(19),
+            self.f(20),
+            self.f(21),
+            self.f(22),
+            self.f(23),
+            self.f(24),
+            self.f(25),
+            self.f(26),
+            self.f(27),
+            self.f(28),
+        )
+    }
+}
+
+foreign_class!(
+    /// This arg can hold function values from 9 to 28, but as they where grouped only a few a time.
+    /// If the group is 0x07: f9 - f11 are available
+    /// If the group is 0x05: f12 + f20 + f28 are available
+    /// If the group is 0x08: f13 - f19 are available
+    /// If the group is 0x09: f21 - f27 are available
+    class FunctionArg {
+        self_type FunctionArg;
+        /// Creates a new function arg
+        /// @param group The group to decide availability of the specific function args (see class description)
+        constructor FunctionArg::new(group: u8) -> FunctionArg;
+        /// Creates a new function arg
+        /// @param group The group to decide availability of the specific function args (see class description)
+        /// @param f The function value to set (8 bit)
+        constructor FunctionArg::parse(group: u8, f: u8) -> FunctionArg;
+        /// @return The function group
+        fn FunctionArg::group(&self) -> u8;
+        /// @return Available function values for set group (see class description) or standard false if no value is available
+        fn FunctionArg::f(&self, fNum: u8) -> bool;
+        /// Sets the specific function value to set fNum = 1 groups max value fNum = 4 groups min value
+        fn FunctionArg::set_f(&mut self, fNum: u8, f: bool); alias setF;
+        /// @return A string in the format "function_arg: (f9 - f28)"
+        fn FunctionArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this function arg is equal to another function arg
+        /// @param other The function arg to compare to
+        /// @return If this function arg is equal to the other function arg
+        fn FunctionArg::eq(&self, other: &FunctionArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this function arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this function arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((FunctionArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
 #[derive(Debug, Copy, Clone)]
@@ -4049,29 +4168,27 @@ foreign_class!(class LocoSpd {
 });
 
 #[derive(Debug, Copy, Clone)]
-pub struct MultiSense(MTypeArg, ZasArg, SenseAddrArg);
+pub struct MultiSense(MultiSenseArg, AddressArg);
 
 impl LocoNetMessage for MultiSense {
     fn send(&self, loco_connector: &mut LocoNetConnector) -> bool {
-        loco_connector.write(vec![0xD0 as u8, self.0.m_type(), self.1.zas(), self.2.addr1(), self.2.addr2()])
+        loco_connector.write(vec![0xD0 as u8, self.0.m_high(), self.0.zas(), self.1.adr1(), self.1.adr2()])
     }
 }
 
 impl MultiSense {
-    pub fn new(m_type: MTypeArg, zas: ZasArg, sense_adr: SenseAddrArg) -> Self {
-        MultiSense(m_type, zas, sense_adr)
+    pub fn new(multi_sense_arg: MultiSenseArg, sense_adr: AddressArg) -> Self {
+        MultiSense(multi_sense_arg, sense_adr)
     }
-    pub fn get_m_type(&self) -> MTypeArg { self.0 }
-    pub fn get_zas(&self) -> ZasArg { self.1 }
-    pub fn get_sense_adr(&self) -> SenseAddrArg { self.2 }
+    pub fn get_multi_sense_arg(&self) -> MultiSenseArg { self.0 }
+    pub fn get_sense_adr(&self) -> AddressArg { self.1 }
 }
 
 foreign_class!(class MultiSense {
     self_type MultiSense;
-    constructor MultiSense::new(m_type: MTypeArg, zas: ZasArg, senseAdr: SenseAddrArg) -> MultiSense;
-    fn MultiSense::get_m_type(&self) -> MTypeArg; alias getMType;
-    fn MultiSense::get_zas(&self) -> ZasArg; alias getZas;
-    fn MultiSense::get_sense_adr(&self) -> SenseAddrArg; alias getSenseArg;
+    constructor MultiSense::new(multiSenseArg: MultiSenseArg, senseAdr: AddressArg) -> MultiSense;
+    fn MultiSense::get_multi_sense_arg(&self) -> MultiSenseArg; alias getMultiSenseArg;
+    fn MultiSense::get_sense_adr(&self) -> AddressArg; alias getSenseArg;
     fn MultiSense::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
 });
 
@@ -4889,9 +5006,8 @@ impl LocoNetConnector {
         }
         match opc {
             0xD0 => Ok(Message::MultiSense(MultiSense(
-                MTypeArg::parse(args[0]),
-                ZasArg::parse(args[1]),
-                SenseAddrArg::parse(args[2], args[3]),
+                MultiSenseArg::parse(args[0], args[1]),
+                AddressArg::parse(args[2], args[3]),
             ))),
             0xD4 => {
                 assert_eq!(0x20, args[0], "Value of arg0 can only be {:?}", 0x20);
