@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 # Install clang and other dependencies
 
+cd setup_scripts || exit 1
 ./prepare_build.sh
 
 apt-get install --yes libc6-dev-i386 gcc-mingw-w64
