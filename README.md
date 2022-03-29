@@ -11,7 +11,7 @@ A fully functional Java library for controlling a model train railroad based on 
 
 ## Importing the LocoDrive
 
-You can use the github package to embed the locodrive as library in your maven or gradle java repositories. This jar has a natives file for every system (windows, linux and debian) inside to run on most of these devices.
+You can use the github package to embed the locodrive as library in your maven or gradle java repositories. This jar has a natives file for every system (windows, linux) inside to run on most of these devices.
 
 If you want a specialized version or build this your own you can clone this repository locally and build it yourself. Please note that this repository is system dependent. So you need to build its rust native for every system you want to use.
 
