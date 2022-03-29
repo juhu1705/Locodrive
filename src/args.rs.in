@@ -2226,31 +2226,45 @@ impl FunctionArg {
 
     pub fn f(&self, f_num: u8) -> bool {
         if f_num > 8 && f_num < 12 && self.0 == 0x07 {
-            (self.1 >> (f_num - 9) & 1) != 0
+            (self.1 >> (f_num - 5)) & 1 != 0
         } else if (f_num == 12 || f_num == 20 || f_num == 28) && self.0 == 0x05 {
             (self.1
                 >> (if f_num == 12 {
+                4
+            } else if f_num == 20 {
+                5
+            } else {
+                6
+            })) & 1
+                != 0
+        } else if f_num > 12 && f_num < 20 && self.0 == 0x08 {
+            (self.1 >> (f_num - 13)) & 1 != 0
+        } else if f_num > 20 && f_num < 28 && self.0 == 0x09 {
+            (self.1 >> (f_num - 21)) & 1 != 0
+        } else {
+            false
+        }
+    }
+
+    pub fn set_f(&mut self, f_num: u8, value: bool) {
+        let mask = if f_num > 8 && f_num < 12 && self.0 == 0x07 {
+            1 << (f_num - 5)
+        } else if (f_num == 12 || f_num == 20 || f_num == 28) && self.0 == 0x05 {
+            1 << (if f_num == 12 {
                 0
             } else if f_num == 20 {
                 1
             } else {
                 2
             })
-                & 1)
-                != 0
         } else if f_num > 12 && f_num < 20 && self.0 == 0x08 {
-            (self.1 >> (f_num - 13) & 1) != 0
+            1 << (f_num - 13)
         } else if f_num > 20 && f_num < 28 && self.0 == 0x09 {
-            (self.1 >> (f_num - 21) & 1) != 0
+            1 << (f_num - 21)
         } else {
-            false
-        }
-    }
+            0x00
+        };
 
-    // TODO: Set f as function real number
-    pub fn set_f(&mut self, f_num: u8, value: bool) {
-        assert!(f_num <= 4, "f must be lower than or equal to 4");
-        let mask = 1 << (f_num - 9);
         if value {
             self.1 |= mask;
         } else {
@@ -2348,7 +2362,9 @@ foreign_class!(
         fn FunctionArg::group(&self) -> u8;
         /// @return Available function values for set group (see class description) or standard false if no value is available
         fn FunctionArg::f(&self, fNum: u8) -> bool;
-        /// Sets the specific function value to set fNum = 1 groups max value fNum = 4 groups min value
+        /// Sets the specific function value to the given value. If the function value is not within the group bounds nothing will change
+        /// @param fNum The function number to set the value to
+        /// @param f The functions value
         fn FunctionArg::set_f(&mut self, fNum: u8, f: bool); alias setF;
         /// @return A string in the format "function_arg: (f9 - f28)"
         fn FunctionArg::to_string(&self) -> String; alias toString;
@@ -2380,33 +2396,33 @@ foreign_class!(
 "#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Pcmd {
     write: bool,
     byte_mode: bool,
     ops_mode: bool,
-    ty1: bool, // Programing type select bit
-    ty2: bool, // prog type select bit
+    ty0: bool, // Programing type select bit
+    ty1: bool, // prog type select bit
 }
 
 impl Pcmd {
-    pub fn new(write: bool, byte_mode: bool, ops_mode: bool, ty1: bool, ty2: bool) -> Self {
-        Pcmd{ write, byte_mode, ops_mode, ty1, ty2 }
+    pub fn new(write: bool, byte_mode: bool, ops_mode: bool, ty0: bool, ty1: bool) -> Self {
+        Pcmd{ write, byte_mode, ops_mode, ty0, ty1 }
     }
 
     pub fn parse(pcmd: u8) -> Self {
         let write = pcmd & 0x20 == 0x20;
         let byte_mode = pcmd & 0x40 == 0x40;
         let ops_mode = pcmd & 0x02 == 0x02;
-        let ty1 = pcmd & 0x80 == 0x80;
-        let ty2 = pcmd & 0x01 == 0x01;
+        let ty0 = pcmd & 0x80 == 0x80;
+        let ty1 = pcmd & 0x01 == 0x01;
 
         Pcmd {
             write,
             byte_mode,
             ops_mode,
+            ty0,
             ty1,
-            ty2,
         }
     }
 
@@ -2422,12 +2438,32 @@ impl Pcmd {
         self.ops_mode
     }
 
+    pub fn ty0(&self) -> bool {
+        self.ty0
+    }
+
     pub fn ty1(&self) -> bool {
         self.ty1
     }
 
-    pub fn ty2(&self) -> bool {
-        self.ty2
+    pub fn set_write(&mut self, write: bool) {
+        self.write = write
+    }
+
+    pub fn set_byte_mode(&mut self, byte_mode: bool) {
+        self.byte_mode = byte_mode
+    }
+
+    pub fn set_ops_mode(&mut self, ops_mode: bool) {
+        self.ops_mode = ops_mode
+    }
+
+    pub fn set_ty0(&mut self, ty0: bool) {
+        self.ty0 = ty0
+    }
+
+    pub fn set_ty1(&mut self, ty1: bool) {
+        self.ty1 = ty1
     }
 
     pub fn pcmd(&self) -> u8 {
@@ -2438,27 +2474,101 @@ impl Pcmd {
         if self.ops_mode {
             pcmd |= 0x02;
         }
-        if self.ty1 {
+        if self.ty0 {
             pcmd |= 0x80;
         }
-        if self.ty2 {
+        if self.ty1 {
             pcmd |= 0x01;
         }
         pcmd
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Pcmd {
-    self_type Pcmd;
-    constructor Pcmd::new(_: bool, _: bool, _: bool, _: bool, _: bool) -> Pcmd;
-    fn Pcmd::write(&self) -> bool;
-    fn Pcmd::byte_mode(&self) -> bool; alias byteMode;
-    fn Pcmd::ops_mode(&self) -> bool; alias opsMode;
-    fn Pcmd::ty1(&self) -> bool;
-    fn Pcmd::ty2(&self) -> bool;
+impl Display for Pcmd {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "pcmd: (write: {}, byte_mode: {}, ops_mode: {}, ty0: {}, ty1: {})",
+            self.write,
+            self.byte_mode,
+            self.ops_mode,
+            self.ty0,
+            self.ty1
+        )
+    }
+}
+
+foreign_class!(
+    /// This args hold programmer command data.
+    class Pcmd {
+        self_type Pcmd;
+        /// Creates new programmer command data. Every data set to false means current operation will be aborted.
+        /// @param write If this operation is for writing or else reading
+        /// @param byteMode If it is a byte or else bit operation
+        /// @param opsMode If this operation is on main line or programmer track
+        /// @param ty0 Programming type select bit 0
+        /// @param ty1 Programming type select bit 1
+        constructor Pcmd::new(write: bool, byteMode: bool, opsMode: bool, ty0: bool, ty1: bool) -> Pcmd;
+        /// @return If this operation is for writing or else reading
+        fn Pcmd::write(&self) -> bool;
+        /// @return If this operation is a byte or else bit operation
+        fn Pcmd::byte_mode(&self) -> bool; alias byteMode;
+        /// @return If this operation is on main line or programming track
+        fn Pcmd::ops_mode(&self) -> bool; alias opsMode;
+        /// @return Programming type select bit 0
+        fn Pcmd::ty0(&self) -> bool;
+        /// @return Programming type select bit 1
+        fn Pcmd::ty1(&self) -> bool;
+        /// Sets the write or read mode
+        /// @param write If this operation is for writing or else reading
+        fn Pcmd::set_write(&mut self, write: bool); alias setWrite;
+        /// Sets to byte or bit mode
+        /// @param byteMode If it is a byte or else bit operation
+        fn Pcmd::set_byte_mode(&mut self, byteMode: bool); alias setByteMode;
+        /// Sets the ops mode
+        /// @param opsMode If this operation is on main line or programmer track
+        fn Pcmd::set_ops_mode(&mut self, opsMode: bool); alias setOpsMode;
+        /// Sets the programming type select bit 0
+        /// @param ty0 Programming type select bit 0
+        fn Pcmd::set_ty0(&mut self, ty0: bool); alias setTy0;
+        /// Sets the programming type select bit 1
+        /// @param ty1 Programming type select bit 1
+        fn Pcmd::set_ty1(&mut self, ty1: bool); alias setTy1;
+        /// @return A string in the format "pcmd: (write: write, byte_mode: byte_mode, ops_mode: ops_mode, ty0: ty0, ty1: ty1)"
+        fn Pcmd::to_string(&self) -> String; alias toString;
+        /// Checks whether this pcmd arg is equal to another pcmd arg
+        /// @param other The pcmd arg to compare to
+        /// @return If this pcmd arg is equal to the other pcmd arg
+        fn Pcmd::eq(&self, other: &Pcmd) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this pcmd arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this pcmd arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Pcmd) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.write(), this.byteMode(), this.opsMode(), this.ty0(), this.ty1());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PStat {
     user_aborted: bool,
     no_read_ack: bool,
@@ -2514,106 +2624,113 @@ impl PStat {
         }
         stat
     }
-}
 
-foreign_class!(class PStat {
-    self_type PStat;
-    constructor PStat::new(_: bool, _: bool, _: bool, _: bool) -> PStat;
-    fn PStat::user_aborted(&self) -> bool; alias userAborted;
-    fn PStat::no_read_ack(&self) -> bool; alias noReadAck;
-    fn PStat::no_write_ack(&self) -> bool; alias noWriteAck;
-    fn PStat::programming_track_empty(&self) -> bool; alias programmingTrackEmpty;
-});
-
-#[derive(Debug, Copy, Clone)]
-pub struct Hopsa(u8);
-
-impl Hopsa {
-    pub fn parse(o_mode: u8) -> Self {
-        Hopsa(o_mode & 0x7F)
-    }
-
-    pub fn service_mode(&self) -> bool {
-        self.0 == 0
-    }
-
-    pub fn o_mode(&self) -> u8 {
-        self.0
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class Hopsa {
-    self_type Hopsa;
-    constructor Hopsa::parse(_: u8) -> Hopsa;
-    fn Hopsa::service_mode(&self) -> bool; alias serviceMode;
-    fn Hopsa::o_mode(&self) -> u8; alias oMode;
-});
-
-#[derive(Debug, Copy, Clone)]
-pub struct Lopsa(u8);
-
-impl Lopsa {
-    pub fn parse(o_mode: u8) -> Self {
-        Lopsa(o_mode & 0x7F)
-    }
-
-    pub fn service_mode(&self) -> bool {
-        self.0 == 0
-    }
-
-    pub fn o_mode(&self) -> u8 {
-        self.0
+impl Display for PStat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "p_stat: (user_aborted: {}, no_read_ack: {}, no_write_ack: {}, programming_track_empty: {})",
+            self.user_aborted,
+            self.no_read_ack,
+            self.no_write_ack,
+            self.programming_track_empty
+        )
     }
 }
 
-foreign_class!(class Lopsa {
-    self_type Lopsa;
-    constructor Lopsa::parse(_: u8) -> Lopsa;
-    fn Lopsa::service_mode(&self) -> bool; alias serviceMode;
-    fn Lopsa::o_mode(&self) -> u8; alias oMode;
+foreign_class!(
+    /// Programmer error flags data
+    class PStat {
+        self_type PStat;
+        /// Creates a new programming error data flag
+        /// @param userAborted Received a abort message for operation and end the command
+        /// @param noReadAck Did not received a valid read acknowledgement from the receiver
+        /// @param noWriteAck Did not received a valid write acknowledgement from the receiver
+        /// @param programmingTrackEmpty Programming track is empty
+        constructor PStat::new(userAborted: bool, noReadAck: bool, noWriteAck: bool, programmingTrackEmpty: bool) -> PStat;
+        /// @return If the command was aborted from the user.
+        fn PStat::user_aborted(&self) -> bool; alias userAborted;
+        /// @return If no read acknowledgment was received.
+        fn PStat::no_read_ack(&self) -> bool; alias noReadAck;
+        /// @return If no write acknowledgment was received.
+        fn PStat::no_write_ack(&self) -> bool; alias noWriteAck;
+        /// @return If the programming track was empty and therefore the operation failed
+        fn PStat::programming_track_empty(&self) -> bool; alias programmingTrackEmpty;
+        /// @return A string in the format "p_stat: (user_aborted: user_aborted, no_read_ack: no_read_ack, no_write_ack: no_write_ack, programming_track_empty: programming_track_empty)"
+        fn PStat::to_string(&self) -> String; alias toString;
+        /// Checks whether this pstat arg is equal to another pstat arg
+        /// @param other The pstat arg to compare to
+        /// @return If this pstat arg is equal to the other pstat arg
+        fn PStat::eq(&self, other: &PStat) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this pstat arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this pstat arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((PStat) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.userAborted(), this.noReadAck(), this.noWriteAck(), this.programmingTrackEmpty());
+    }
+"#;
 });
 
-#[derive(Copy, Clone)]
-pub struct CvArg(u16);
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct CvDataArg(u16, u8);
 
-impl CvArg {
+impl CvDataArg {
     pub fn new() -> Self {
-        CvArg(0)
+        CvDataArg(0, 0)
     }
 
-    pub fn parse(cvh: u8, cvl: u8) -> Self {
+    pub fn parse(cvh: u8, cvl: u8, data7: u8) -> Self {
         let mut cv_arg = cvl as u16;
+        let data = ((cvh & 0x02) << 6) | data7;
 
-        let data_arg = (cvh & 0x02) >> 1;
         let mut high_cv_arg = cvh & 0x01;
         high_cv_arg |= (cvh & 0x30) >> 3;
-        high_cv_arg |= (data_arg) << 3;
 
         cv_arg |= (high_cv_arg as u16) << 7;
 
-        CvArg(cv_arg)
+        CvDataArg(cv_arg, data)
     }
 
-    pub fn data7(&self) -> bool {
-        self.0 & 0x0800 != 0
+    pub fn data(&self, d_num: u8) -> bool {
+        (self.1 >> d_num) & 0x01 != 0
     }
 
     pub fn cv(&self, cv_num: u8) -> bool {
-        assert!(cv_num <= 9, "cv must be lower than or equal to 9");
         self.0 >> cv_num & 1 != 0
     }
 
-    pub fn set_data7(&mut self, value: bool) {
+    pub fn set_data(&mut self, d_num: u8, value: bool) {
+        let mask = 1 << d_num;
+
         if value {
-            self.0 |= 0x0800;
+            self.1 |= mask;
         } else {
-            self.0 &= !0x0800;
+            self.1 &= !mask;
         }
     }
 
     pub fn set_cv(&mut self, cv_num: u8, value: bool) {
-        assert!(cv_num <= 9, "cv must be lower than or equal to 9");
-        let mask = 1 << cv_num;
+        let mask = (1 << cv_num) & 0x03FF;
         if value {
             self.0 |= mask;
         } else {
@@ -2626,7 +2743,7 @@ impl CvArg {
         let high_cv = cvh & 0x06 << 3;
         cvh &= 0x01;
         cvh |= high_cv;
-        if self.data7() {
+        if self.data(7) {
             cvh |= 0x02;
         }
         cvh
@@ -2635,14 +2752,29 @@ impl CvArg {
     pub fn cvl(&self) -> u8 {
         self.0 as u8 & 0x7F
     }
+
+    pub fn data7(&self) -> u8 {
+        self.1 & 0x7F
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-impl Debug for CvArg {
+impl Display for CvDataArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "CvArg(data7: {}, cv0: {}, cv1: {}, cv2: {}, cv3: {}, cv4: {}, cv5: {}, cv6: {}, cv7: {}, cv8: {})",
-            self.data7(),
+            "cv_data_arg: (data: (d0: {}, d1: {}, d2: {}, d3: {}, d4: {}, d5: {}, d6: {}, d7: {}), cv:(cv0: {}, cv1: {}, cv2: {}, cv3: {}, cv4: {}, cv5: {}, cv6: {}, cv7: {}, cv8: {}, cv9: {}))",
+            self.data(0),
+            self.data(1),
+            self.data(2),
+            self.data(3),
+            self.data(4),
+            self.data(5),
+            self.data(6),
+            self.data(7),
             self.cv(0),
             self.cv(1),
             self.cv(2),
@@ -2652,106 +2784,89 @@ impl Debug for CvArg {
             self.cv(6),
             self.cv(7),
             self.cv(8),
+            self.cv(9)
         )
     }
 }
 
-foreign_class!(class CvArg {
-    self_type CvArg;
-    constructor CvArg::new() -> CvArg;
-    fn CvArg::data7(&self) -> bool;
-    fn CvArg::cv(&self, _: u8) -> bool;
-    fn CvArg::set_data7(&mut self, _: bool); alias setData7;
-    fn CvArg::set_cv(&mut self, _: u8, _: bool); alias setCv;
-});
-
-#[derive(Copy, Clone)]
-pub struct DataArg(u8);
-
-impl DataArg {
-    pub fn new() -> Self {
-        DataArg(0)
-    }
-
-    pub fn parse(data: u8) -> Self {
-        DataArg(data)
-    }
-
-    pub fn d(&self, d_num: u8) -> bool {
-        assert!(d_num <= 6, "d must be lower than or equal to 6");
-        self.0 >> d_num & 1 != 0
-    }
-
-    pub fn set_d(&mut self, d_num: u8, value: bool) {
-        assert!(d_num <= 6, "d must be lower than or equal to 6");
-        let mask = 1 << d_num;
-        if value {
-            self.0 |= mask;
-        } else {
-            self.0 &= !mask;
-        }
-    }
-
-    pub fn data(&self) -> u8 {
-        self.0
-    }
-}
-
-impl Debug for DataArg {
+impl Debug for CvDataArg {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "DataArg(d0: {}, d1: {}, d2: {}, d3: {}, d4: {}, d5: {}, d6: {})",
-            self.d(0),
-            self.d(1),
-            self.d(2),
-            self.d(3),
-            self.d(4),
-            self.d(5),
-            self.d(6),
+            "cv_data_arg: (data: (d0: {}, d1: {}, d2: {}, d3: {}, d4: {}, d5: {}, d6: {}, d7: {}), cv:(cv0: {}, cv1: {}, cv2: {}, cv3: {}, cv4: {}, cv5: {}, cv6: {}, cv7: {}, cv8: {}, cv9: {}))",
+            self.data(0),
+            self.data(1),
+            self.data(2),
+            self.data(3),
+            self.data(4),
+            self.data(5),
+            self.data(6),
+            self.data(7),
+            self.cv(0),
+            self.cv(1),
+            self.cv(2),
+            self.cv(3),
+            self.cv(4),
+            self.cv(5),
+            self.cv(6),
+            self.cv(7),
+            self.cv(8),
+            self.cv(9)
         )
     }
 }
 
-foreign_class!(class DataArg {
-    self_type DataArg;
-    constructor DataArg::new() -> DataArg;
-    constructor DataArg::parse(_: u8) -> DataArg;
-    fn DataArg::d(&self, _: u8) -> bool;
-    fn DataArg::set_d(&mut self, _: u8, _: bool); alias setD;
+foreign_class!(
+    /// Holds the programming cv values and the data return values
+    class CvDataArg {
+        self_type CvDataArg;
+        /// Constructs an empty cv data arg. To set the values use the setter methods for cv and data
+        constructor CvDataArg::new() -> CvDataArg;
+        /// @param dNum The data value index to check
+        /// @return The data value with the given index or false. Allowed values are 0 - 7
+        fn CvDataArg::data(&self, dNum: u8) -> bool;
+        /// @param cvNum The cv value index to check
+        /// @return The cv value at the cvNum position. Allowed values are 0 - 9
+        fn CvDataArg::cv(&self, cvNum: u8) -> bool;
+        /// Sets the data value at the position to the given data value
+        /// @param dNum The data values index position (0 - 7)
+        /// @param d The value to set
+        fn CvDataArg::set_data(&mut self, dNum: u8, d: bool); alias setData;
+        /// Sets the cv value at the position to the given cv value
+        /// @param cvNum The cv values index position (0 - 7)
+        /// @param cv The value to set
+        fn CvDataArg::set_cv(&mut self, cvNum: u8, cv: bool); alias setCv;
+        /// @return A string in the format "cv_data_arg: (data: (d0-d7), cv: (cv0-cv9))"
+        fn CvDataArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this cv data arg is equal to another cv data arg
+        /// @param other The cv data arg to compare to
+        /// @return If this cv data arg is equal to the other cv data arg
+        fn CvDataArg::eq(&self, other: &CvDataArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this cv data arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this cv data arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((CvDataArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
-pub struct ClkRateArg(u8);
-
-impl ClkRateArg {
-    pub fn parse(clk_rate: u8) -> Self {
-        ClkRateArg(clk_rate & 0x7F)
-    }
-
-    pub fn set_rate(&mut self, clk_rate: u8) {
-        assert!(
-            clk_rate > 0x7F,
-            "Clock rate {:?} is to high. Only values up to 0x7F are allowed",
-            clk_rate
-        );
-
-        self.0 = clk_rate & 0x7F;
-    }
-
-    pub fn clk_rate(&self) -> u8 {
-        self.0
-    }
-}
-
-foreign_class!(class ClkRateArg {
-    self_type ClkRateArg;
-    constructor ClkRateArg::parse(_: u8) -> ClkRateArg;
-    fn ClkRateArg::clk_rate(&self) -> u8; alias clkRate;
-    fn ClkRateArg::set_rate(&mut self, _: u8); alias setRate;
-});
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FastClock {
     clk_rate: u8,
     frac_minsl: u8,
@@ -2805,21 +2920,84 @@ impl FastClock {
     pub fn clk_cntrl(&self) -> u8 {
         self.clk_cntrl
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class FastClock {
-    self_type FastClock;
-    constructor FastClock::parse(clkRate: u8, fracMinsl: u8, fracMinsh: u8, mins: u8, hours: u8, days: u8, clkCntrl: u8) -> FastClock;
-    fn FastClock::clk_rate(&self) -> u8; alias clkRate;
-    fn FastClock::frac_minsl(&self) -> u8; alias fracMinsl;
-    fn FastClock::frac_minsh(&self) -> u8; alias fracMinsh;
-    fn FastClock::mins(&self) -> u8;
-    fn FastClock::hours(&self) -> u8;
-    fn FastClock::days(&self) -> u8;
-    fn FastClock::clk_cntrl(&self) -> u8; alias clkCntrl;
+impl Display for FastClock {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "fast_clock: (clk_rate: {}, clk_minsl: {}, clk_minsh: {}, duration_secs: {}, clk_cntrl: {})",
+            self.clk_rate,
+            self.frac_minsl,
+            self.frac_minsh,
+            self.duration.as_secs(),
+            self.clk_cntrl,
+        )
+    }
+}
+
+foreign_class!(
+    /// The loco net system clock information
+    class FastClock {
+        self_type FastClock;
+        /// Creates new system clock information
+        /// @param clkRate The system clocks rate. 0 = Freeze clock, 1 = normal (1:1 rate), x = x:1 rate (x = 0 - 128)
+        /// @param fracMinsl sub minute counter depending on the clock generator (reset on valid clk sync request, internal use only)
+        /// @param fracMinsh sub minute counter depending on the clock generator (reset on valid clk sync request, internal use only)
+        /// @param mins The minutes of the clock
+        /// @param hours The hours of the clock
+        /// @param days The days of the clock
+        /// @param clkCntrl (0x10 | x) for valid clk information (x and 0xEF) for invalid clk information.
+        constructor FastClock::parse(clkRate: u8, fracMinsl: u8, fracMinsh: u8, mins: u8, hours: u8, days: u8, clkCntrl: u8) -> FastClock;
+        /// @return The system clocks rate. 0 = Freeze clock, 1 = normal (1:1 rate), x = x:1 rate (x = 0 - 128)
+        fn FastClock::clk_rate(&self) -> u8; alias clkRate;
+        /// @return sub minute counter depending on the clock generator (reset on valid clk sync request, internal use only)
+        fn FastClock::frac_minsl(&self) -> u8; alias fracMinsl;
+        /// @return sub minute counter depending on the clock generator (reset on valid clk sync request, internal use only)
+        fn FastClock::frac_minsh(&self) -> u8; alias fracMinsh;
+        /// @return The minutes of the clock
+        fn FastClock::mins(&self) -> u8;
+        /// @return The hours of the clock
+        fn FastClock::hours(&self) -> u8;
+        /// @return The days of the clock
+        fn FastClock::days(&self) -> u8;
+        /// @return The clocks cntrol byte. Valid clock information if x and 0x10 = 0x10
+        fn FastClock::clk_cntrl(&self) -> u8; alias clkCntrl;
+        /// @return A string in the format "fast_clock_arg: (clk_rate: clk_rate, clk_minsl: clk_minsl, clk_minsh: clk_minsh, duration_secs: duration.as_secs(), clk_cntrl: clk_cntrl)"
+        fn FastClock::to_string(&self) -> String; alias toString;
+        /// Checks whether this fast clock arg is equal to another fast clock arg
+        /// @param other The fast clock arg to compare to
+        /// @return If this fast clock arg is equal to the other fast clock arg
+        fn FastClock::eq(&self, other: &FastClock) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this fast clock arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this fast clock arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((FastClock) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ImArg {
     reps: u8,
     dhi: u8,
@@ -2835,9 +3013,9 @@ impl ImArg {
     }
 
     pub fn parse(check_byte: u8, reps: u8, dhi: u8, im1: u8, im2 : u8, im3: u8, im4: u8, im5: u8) -> ImArg {
-        assert_eq!(check_byte, 0x7F, "Checkbyte of ImmPacket is not 0x7F");
+        assert_eq!(check_byte, 0x7F, "Check byte of ImmPacket is not 0x7F");
 
-        if reps == 0x34 {
+        if reps == 0x44 || (reps == 0x34 && im4 == 0x00) {
             let address = ((im2 as u16) << 8) | im1 as u16;
 
             let function_type = if im3 == 0x5E { 0x5E } else if im3 == 0x5F { 0x5F } else { 0x20 };
@@ -2880,6 +3058,24 @@ impl ImArg {
 
     pub fn function_bits(&self) -> u8 {
         self.function_bits
+    }
+
+    pub fn f(&self, f_num: u8) -> bool {
+        let dist = if self.function_type == 0x5E { 21 } else if self.function_type == 0x5F { 13 } else { 9 } as u8;
+
+        (self.function_bits >> (f_num - dist)) & 0x01 == 0x01
+    }
+
+    pub fn set_f(&mut self, f_num: u8, f: bool) {
+        let dist = if self.function_type == 0x5E { 21 } else if self.function_type == 0x5F { 13 } else { 9 } as u8;
+
+        let mask = 0x01 << (f_num - dist);
+
+        if f {
+            self.function_bits |= mask;
+        } else {
+            self.function_bits &= !mask;
+        }
     }
 
     pub fn im1(&self) -> u8 {
@@ -2926,26 +3122,88 @@ impl ImArg {
     pub fn im5(&self) -> u8 {
         self.im5
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class ImArg {
-    self_type ImArg;
-    constructor ImArg::new(reps: u8, dhi: u8, address: u16, functionType: u8, functionBits: u8, im5: u8) -> ImArg;
-    constructor ImArg::parse(checkByte: u8, reps: u8, dhi: u8, im1: u8, im2 : u8, im3: u8, im4: u8, im5: u8) -> ImArg;
-    fn ImArg::check_byte(&self) -> u8; alias checkByte;
-    fn ImArg::reps(&self) -> u8;
-    fn ImArg::dhi(&self) -> u8;
-    fn ImArg::address(&self) -> u16;
-    fn ImArg::function_type(&self) -> u8; alias functionType;
-    fn ImArg::function_bits(&self) -> u8; alias functionBits;
-    fn ImArg::im1(&self) -> u8;
-    fn ImArg::im2(&self) -> u8;
-    fn ImArg::im3(&self) -> u8;
-    fn ImArg::im4(&self) -> u8;
-    fn ImArg::im5(&self) -> u8;
+impl Display for ImArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "im_arg: (reps: {}, dhi: {}, address: {}, function_type: {}, function_bits: {})",
+            self.reps,
+            self.dhi,
+            self.address,
+            self.function_type,
+            self.function_bits
+        )
+    }
+}
+
+foreign_class!(
+    /// Digitrax high function sending argument
+    class ImArg {
+        self_type ImArg;
+        /// Creates a new im arg
+        /// @param reps The representation of the address. (function 9 - 12: 0x24 for short, 0x34 for long; else: 0x34 for short, 0x44 for long)
+        /// @param dhi high bits and control bits
+        /// @param address The function holders address
+        /// @param functionType The functions type (9-12:0x20, 13-20:0x5E, 21-28:0x5F)
+        /// @param functionBits The function bits
+        /// @param im5 For future use, set to 0
+        constructor ImArg::new(reps: u8, dhi: u8, address: u16, functionType: u8, functionBits: u8, im5: u8) -> ImArg;
+        /// @return The representation of the address. (function 9 - 12: 0x24 for short, 0x34 for long; else: 0x34 for short, 0x44 for long)
+        fn ImArg::reps(&self) -> u8;
+        /// @return high bits and control bits
+        fn ImArg::dhi(&self) -> u8;
+        /// @return The function holders address
+        fn ImArg::address(&self) -> u16;
+        /// @return The functions type (9-12:0x20, 13-20:0x5E, 21-28:0x5F)
+        fn ImArg::function_type(&self) -> u8; alias functionType;
+        /// @return The function bits
+        fn ImArg::function_bits(&self) -> u8; alias functionBits;
+        /// @return For future use, now 0x00
+        fn ImArg::im5(&self) -> u8;
+        /// @param fNum Index to get the value for
+        /// @return The functions value at the given index
+        fn ImArg::f(&self, fNum: u8) -> bool;
+        /// Sets the functions value at the given index to the given value
+        /// @param fNum The index to set the value at
+        /// @param f The given value
+        fn ImArg::set_f(&mut self, fNum: u8, f: bool); alias setF;
+        /// @return A string in the format "im_arg: (reps: reps, dhi: dhi, address: address, function_type: function_type, function_bits: function_bits)"
+        fn ImArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this im arg is equal to another im arg
+        /// @param other The im arg to compare to
+        /// @return If this im arg is equal to the other im arg
+        fn ImArg::eq(&self, other: &ImArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this im arg is equal to another object.
+     * @param o The object to compare to
+     * @return If this im arg is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((ImArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString(), this.im5());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WrSlDataTime(FastClock, TrkArg, IdArg);
 
 impl WrSlDataTime {
@@ -2970,65 +3228,164 @@ impl WrSlDataTime {
     pub fn id_arg(&self) -> IdArg {
         self.2
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class WrSlDataTime {
-    self_type WrSlDataTime;
-    constructor WrSlDataTime::new(fastClock: FastClock, trkArg: TrkArg, idArg: IdArg) -> WrSlDataTime;
-    fn WrSlDataTime::fast_clock(&self) -> FastClock; alias fastClock;
-    fn WrSlDataTime::trk_arg(&self) -> TrkArg; alias trkArg;
-    fn WrSlDataTime::id_arg(&self) -> IdArg; alias idArg;
+impl Display for WrSlDataTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wr_sl_data_time: ({}, {}, {})",
+            self.0,
+            self.1,
+            self.2
+        )
+    }
+}
+
+foreign_class!(
+    /// Represents a Write slot data message for time synchronisation
+    class WrSlDataTime {
+        self_type WrSlDataTime;
+        /// Creates a time synchronisation write slot data method
+        /// @param fastClock The fast clock to use
+        /// @param trkArg The trk params to use
+        /// @param idArg The id of the device last setting the clock. id = 0: no set happens. id: 7F 7x are reserved for PC access
+        constructor WrSlDataTime::new(fastClock: FastClock, trkArg: TrkArg, idArg: IdArg) -> WrSlDataTime;
+        /// @return The fast clock in use
+        fn WrSlDataTime::fast_clock(&self) -> FastClock; alias fastClock;
+        /// @return The track params
+        fn WrSlDataTime::trk_arg(&self) -> TrkArg; alias trkArg;
+        /// @return The device id last setting the clock or 0. For PC access 7F 7x is reserved
+        fn WrSlDataTime::id_arg(&self) -> IdArg; alias idArg;
+        /// @return A string in the format "wr_sl_data_time: (fast_clock: {}, track: {}, id: {})"
+        fn WrSlDataTime::to_string(&self) -> String; alias toString;
+        /// Checks whether this WrSlDataTime is equal to another WrSlDataTime
+        /// @param other The WrSlDataTime to compare to
+        /// @return If this WrSlDataTime is equal to the other WrSlDataTime
+        fn WrSlDataTime::eq(&self, other: &WrSlDataTime) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WrSlDataTime) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.fastClock(), this.idArg(), this.trkArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
-pub struct WrSlDataPt(Pcmd, Hopsa, Lopsa, TrkArg, CvArg, DataArg);
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct WrSlDataPt(Pcmd, AddressArg, TrkArg, CvDataArg);
 
 impl WrSlDataPt {
-    pub fn new(pcmd: Pcmd, hopsa: Hopsa, lopsa: Lopsa, trk_arg: TrkArg, cv_arg: CvArg, data_arg: DataArg) -> Self {
-        WrSlDataPt(pcmd, hopsa, lopsa, trk_arg, cv_arg, data_arg)
+    pub fn new(pcmd: Pcmd, opsa: AddressArg, trk_arg: TrkArg, cv_data_arg: CvDataArg) -> Self {
+        WrSlDataPt(pcmd, opsa, trk_arg, cv_data_arg)
     }
 
     pub fn parse(pcmd: u8, _arg3: u8, hopsa: u8, lopsa: u8, trk: u8, cvh: u8, cvl: u8, data7: u8, _arg10: u8, _arg11: u8) -> Self {
-        WrSlDataPt(Pcmd::parse(pcmd), Hopsa::parse(hopsa), Lopsa::parse(lopsa), TrkArg::parse(trk), CvArg::parse(cvh, cvl), DataArg::parse(data7))
+        WrSlDataPt(Pcmd::parse(pcmd), AddressArg::parse(hopsa, lopsa), TrkArg::parse(trk), CvDataArg::parse(cvh, cvl, data7))
     }
 
     pub fn pcmd(&self) -> Pcmd {
         self.0
     }
 
-    pub fn hopsa(&self) -> Hopsa {
+    pub fn opsa(&self) -> AddressArg {
         self.1
     }
 
-    pub fn lopsa(&self) -> Lopsa {
+    pub fn trk_arg(&self) -> TrkArg {
         self.2
     }
 
-    pub fn trk_arg(&self) -> TrkArg {
+    pub fn cv_data_arg(&self) -> CvDataArg {
         self.3
     }
 
-    pub fn cv_arg(&self) -> CvArg {
-        self.4
-    }
-
-    pub fn data_arg(&self) -> DataArg {
-        self.5
+    fn to_string(&self) -> String {
+        format!("{}", self)
     }
 }
 
-foreign_class!(class WrSlDataPt {
-    self_type WrSlDataPt;
-    constructor WrSlDataPt::new(_: Pcmd, _: Hopsa, _: Lopsa, trkArg: TrkArg, cvArg: CvArg, dataArg: DataArg) -> WrSlDataPt;
-    fn WrSlDataPt::pcmd(&self) -> Pcmd;
-    fn WrSlDataPt::hopsa(&self) -> Hopsa;
-    fn WrSlDataPt::lopsa(&self) -> Lopsa;
-    fn WrSlDataPt::trk_arg(&self) -> TrkArg; alias trkArg;
-    fn WrSlDataPt::cv_arg(&self) -> CvArg; alias cvArg;
-    fn WrSlDataPt::data_arg(&self) -> DataArg; alias dataArg;
+impl Display for WrSlDataPt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wr_sl_data_pt: ({}, {}, {}, {})",
+            self.0,
+            self.1,
+            self.2,
+            self.3
+        )
+    }
+}
+
+foreign_class!(
+    /// Write slot data to programm on programming track
+    class WrSlDataPt {
+        self_type WrSlDataPt;
+        /// Creates a new write slot data programming track object
+        /// @param pcmd The programmer command or 0 to abort current operation
+        /// @param opsa The operation mode programming
+        /// @param trkArg The track arg
+        /// @param cvDataArg The data and cv args for this programming command
+        constructor WrSlDataPt::new(pcmd: Pcmd, opsa: AddressArg, trkArg: TrkArg, cvDataArg: CvDataArg) -> WrSlDataPt;
+        /// @return The programmer command or 0 to abort current operation
+        fn WrSlDataPt::pcmd(&self) -> Pcmd;
+        /// @return The operation mode programming
+        fn WrSlDataPt::opsa(&self) -> AddressArg;
+        /// @return The track arg
+        fn WrSlDataPt::trk_arg(&self) -> TrkArg; alias trkArg;
+        /// @return The data and cv args for this programming command
+        fn WrSlDataPt::cv_data_arg(&self) -> CvDataArg; alias cvDataArg;
+        /// @return A string in the format "wr_sl_data_pt: (pcmd, opsa, trk_arg, cv_data_arg)"
+        fn WrSlDataPt::to_string(&self) -> String; alias toString;
+        /// Checks whether this WrSlDataPt is equal to another WrSlDataPt
+        /// @param other The WrSlDataPt to compare to
+        /// @return If this WrSlDataPt is equal to the other WrSlDataPt
+        fn WrSlDataPt::eq(&self, other: &WrSlDataPt) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WrSlDataPt) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.pcmd(), this.opsa(), this.trkArg(), this.cvDataArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WrSlDataGeneral(SlotArg, Stat1Arg, Stat2Arg, AddressArg, SpeedArg, DirfArg, TrkArg, SndArg, IdArg);
 
 impl WrSlDataGeneral {
@@ -3087,24 +3444,96 @@ impl WrSlDataGeneral {
     pub fn set_snd_arg(&mut self, snd_arg: SndArg) {
         self.7 = snd_arg;
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class WrSlDataGeneral {
-    self_type WrSlDataGeneral;
-    constructor WrSlDataGeneral::new(_: SlotArg, _: Stat1Arg, _: Stat2Arg, _: AddressArg, _: SpeedArg, _: DirfArg, _: TrkArg, _: IdArg) -> WrSlDataGeneral;
-    fn WrSlDataGeneral::slot_arg(&self) -> SlotArg; alias slotArg;
-    fn WrSlDataGeneral::stat1_arg(&self) -> Stat1Arg; alias stat1Arg;
-    fn WrSlDataGeneral::stat2_arg(&self) -> Stat2Arg; alias stat2Arg;
-    fn WrSlDataGeneral::address_arg(&self) -> AddressArg; alias addressArg;
-    fn WrSlDataGeneral::speed_arg(&self) -> SpeedArg; alias speedArg;
-    fn WrSlDataGeneral::dirf_arg(&self) -> DirfArg; alias dirfArg;
-    fn WrSlDataGeneral::trk_arg(&self) -> TrkArg; alias trkArg;
-    fn WrSlDataGeneral::snd_arg(&self) -> SndArg; alias sndArg;
-    fn WrSlDataGeneral::id_arg(&self) -> IdArg; alias idArg;
-    fn WrSlDataGeneral::set_snd_arg(&mut self, _: SndArg); alias setSndArg;
+impl Display for WrSlDataGeneral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wr_sl_data_general: ({}, {}, {}, {}, {}, {}, {}, {}, {})",
+            self.0,
+            self.1,
+            self.2,
+            self.3,
+            self.4,
+            self.5,
+            self.6,
+            self.7,
+            self.8
+        )
+    }
+}
+
+foreign_class!(
+    /// Write slot data
+    class WrSlDataGeneral {
+        self_type WrSlDataGeneral;
+        /// Creates a new write slot data arg
+        /// @param slot The slot to write to
+        /// @param stat1 The status for speed steps
+        /// @param stat2 Slot information
+        /// @param address The locomotive address
+        /// @param speed The locomotives speed
+        /// @param dirf The locomotives direction and functions
+        /// @param trk The track
+        /// @param id The id of the last setting device
+        constructor WrSlDataGeneral::new(slot: SlotArg, stat1: Stat1Arg, stat2: Stat2Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, id: IdArg) -> WrSlDataGeneral;
+        /// @return The slot to write to
+        fn WrSlDataGeneral::slot_arg(&self) -> SlotArg; alias slotArg;
+        /// @return The status for speed steps
+        fn WrSlDataGeneral::stat1_arg(&self) -> Stat1Arg; alias stat1Arg;
+        /// @return Slot information
+        fn WrSlDataGeneral::stat2_arg(&self) -> Stat2Arg; alias stat2Arg;
+        /// @return The locomotive address
+        fn WrSlDataGeneral::address_arg(&self) -> AddressArg; alias addressArg;
+        /// @return The locomotives speed
+        fn WrSlDataGeneral::speed_arg(&self) -> SpeedArg; alias speedArg;
+        /// @return The locomotives direction and functions
+        fn WrSlDataGeneral::dirf_arg(&self) -> DirfArg; alias dirfArg;
+        /// @return The track
+        fn WrSlDataGeneral::trk_arg(&self) -> TrkArg; alias trkArg;
+        /// @return The slot sound
+        fn WrSlDataGeneral::snd_arg(&self) -> SndArg; alias sndArg;
+        /// @return The id of the last setting device
+        fn WrSlDataGeneral::id_arg(&self) -> IdArg; alias idArg;
+        /// Sets the slot sound
+        /// @param snd The slots sound to set
+        fn WrSlDataGeneral::set_snd_arg(&mut self, snd: SndArg); alias setSndArg;
+        /// @return A string in the format "wr_sl_data_general: (args)"
+        fn WrSlDataGeneral::to_string(&self) -> String; alias toString;
+        /// Checks whether this WrSlDataGeneral is equal to another WrSlDataGeneral
+        /// @param other The WrSlDataGeneral to compare to
+        /// @return If this WrSlDataGeneral is equal to the other WrSlDataGeneral
+        fn WrSlDataGeneral::eq(&self, other: &WrSlDataGeneral) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WrSlDataGeneral) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.slotArg(), this.stat1Arg(), this.stat2Arg(), this.addressArg(), this.speedArg(), this.dirfArg(), this.trkArg(), this.sndArg(), this.idArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WrSlDataStructure {
     slot_type: u8,
     time_slot: WrSlDataTime,
@@ -3145,21 +3574,68 @@ impl WrSlDataStructure {
 
     pub fn to_message(&self) -> Vec<u8> {
         if self.slot_type == 0x7C {
-            return vec![0xEF as u8, 0x0E as u8, 0x7C as u8, self.pt_slot.0.pcmd(), 0x00 as u8, self.pt_slot.1.o_mode(), self.pt_slot.2.o_mode(), self.pt_slot.3.trk_arg(), self.pt_slot.4.cvh(), self.pt_slot.4.cvl(), self.pt_slot.5.data(), 0x00 as u8, 0x00 as u8];
+            return vec![0xEF as u8, 0x0E as u8, 0x7C as u8, self.pt_slot.0.pcmd(), 0x00 as u8, self.pt_slot.1.adr2(), self.pt_slot.1.adr1(), self.pt_slot.2.trk_arg(), self.pt_slot.3.cvh(), self.pt_slot.3.cvl(), self.pt_slot.3.data7(), 0x00 as u8, 0x00 as u8];
         } else if self.slot_type == 0x7B {
             return vec![0xEF as u8, 0x0E as u8, 0x7B as u8, self.time_slot.0.clk_rate(), self.time_slot.0.frac_minsl(), self.time_slot.0.frac_minsh(), self.time_slot.0.mins(), self.time_slot.1.trk_arg(), self.time_slot.0.hours(), self.time_slot.0.days(), self.time_slot.0.clk_cntrl(), self.time_slot.2.id1(), self.time_slot.2.id2()];
         }
         return vec![0xEF as u8, 0x0E as u8, self.general_slot.0.slot(), self.general_slot.1.stat1(), self.general_slot.3.adr1(), self.general_slot.4.spd(), self.general_slot.5.dirf(), self.general_slot.6.trk_arg(), self.general_slot.2.stat2(), self.general_slot.3.adr2(), self.general_slot.7.snd(), self.general_slot.8.id1(), self.general_slot.8.id2()];
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class WrSlDataStructure {
-    self_type WrSlDataStructure;
-    constructor WrSlDataStructure::new(_: u8, _: WrSlDataTime, _: WrSlDataPt, _: WrSlDataGeneral) -> WrSlDataStructure;
-    fn WrSlDataStructure::slot_type(&self) -> u8; alias slotType;
-    fn WrSlDataStructure::time_slot(&self) -> WrSlDataTime; alias timeSlot;
-    fn WrSlDataStructure::pt_slot(&self) -> WrSlDataPt; alias ptSlot;
-    fn WrSlDataStructure::general_slot(&self) -> WrSlDataGeneral; alias generalSlot;
+impl Display for WrSlDataStructure {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wr_sl_data_structure: (slot_type: {}, {}, {}, {})",
+            self.slot_type,
+            self.general_slot,
+            self.pt_slot,
+            self.time_slot,
+        )
+    }
+}
+
+foreign_class!(
+    /// A write slot data
+    class WrSlDataStructure {
+        self_type WrSlDataStructure;
+        constructor WrSlDataStructure::new(slot_type: u8, general_slot: WrSlDataTime, pt_slot: WrSlDataPt, time_slot: WrSlDataGeneral) -> WrSlDataStructure;
+        fn WrSlDataStructure::slot_type(&self) -> u8; alias slotType;
+        fn WrSlDataStructure::time_slot(&self) -> WrSlDataTime; alias timeSlot;
+        fn WrSlDataStructure::pt_slot(&self) -> WrSlDataPt; alias ptSlot;
+        fn WrSlDataStructure::general_slot(&self) -> WrSlDataGeneral; alias generalSlot;
+        /// @return A string in the format "wr_sl_data_structure: (type: type, general_slot, pt_slot, time_slot)"
+        fn WrSlDataStructure::to_string(&self) -> String; alias toString;
+        /// Checks whether this WrSlDataStructure is equal to another WrSlDataStructure
+        /// @param other The WrSlDataStructure to compare to
+        /// @return If this WrSlDataStructure is equal to the other WrSlDataStructure
+        fn WrSlDataStructure::eq(&self, other: &WrSlDataStructure) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WrSlDataStructure) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
 #[derive(Debug, Copy, Clone)]

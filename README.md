@@ -3,11 +3,11 @@
 A fully functional Java library for controlling a model train railroad based on a loco net system. The sending logic of this library is written in rust and embedded as native library in Java.
 
 ## Features
-| Feature                          | Description                                                                                     | Status  |
-|----------------------------------|-------------------------------------------------------------------------------------------------|---------|
-| Sending control                  | Control of sending messages to loconet                                                          | DONE    |
-| Receiving control                | Possibility to handle received messages                                                         | DONE    |
-| Configuration of the connection  | Control over the configuration settings of the loco net connection like BaudRate or FlowControl | PLANNED |
+| Feature                          | Description                                                                                     | Status |
+|----------------------------------|-------------------------------------------------------------------------------------------------|--------|
+| Sending control                  | Control of sending messages to loconet                                                          | DONE   |
+| Receiving control                | Possibility to handle received messages                                                         | DONE   |
+| Configuration of the connection  | Control over the configuration settings of the loco net connection like BaudRate or FlowControl | DONE   |
 
 ## Importing the LocoDrive
 

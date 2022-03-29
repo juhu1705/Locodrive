@@ -13,7 +13,7 @@ List your changes:
 
 The important improvements made by these changes.
 
-# Logs
+# Logs (Only needed when changes on the loco net logic are made)
 
 A log showing this change is working with a loco net system. If you do not have the opportunity to add such a log here, consider assign me as reviewer, so I can test the changes on my system.
 
