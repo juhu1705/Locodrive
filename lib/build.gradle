@@ -111,7 +111,11 @@ tasks.create(name: "cargo-output-dir", description: "Get cargo metadata") {
 tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", dependsOn: "cargo-output-dir") {
     workingDir rustBasePath
     logger.info("Run cargo build")
-    commandLine 'cargo', 'build', '--release', '||', '~/.cargo/bin/cargo', 'build', '--release'
+    try {
+        commandLine 'cargo', 'build', '--release'
+    } catch(ignored) {
+        commandLine '~/.cargo/bin/cargo', 'build', '--release'
+    }
     doLast {
         logger.info("Optimize flapigen code")
         def locoNetMessages = ["Idle", "GpOn", "GpOff", "Busy", "LocoAdr", "SwAck", "SwState", "RqSlData", "MoveSlots", "LinkSlots", "UnlinkSlots", "ConsistFunc", "SlotStat1", "LongAck", "InputRep", "SwRep", "SwReq", "LocoSnd", "LocoDirf", "LocoSpd", "MultiSense", "UhliFun", "WrSlData", "SlRdData", "ImmPacket", "Rep", "PeerXfer"]
