@@ -35,7 +35,8 @@ echo "CARGO READY"
 
 # apt install --yes openjdk-17-jdk
 
-JAVA_HOME=$(cmd "$(realpath "$(which java)")" | rev | cut -d'/' -f3- | rev)
+
+JAVA_HOME=$(echo "$(realpath "$(which java)")" | rev | cut -d'/' -f3- | rev)
 export JAVA_HOME
 # Windows resources
 
