@@ -111,9 +111,9 @@ tasks.create(name: "cargo-output-dir", description: "Get cargo metadata") {
 tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", dependsOn: "cargo-output-dir") {
     workingDir rustBasePath
     logger.info("Run cargo build")
-    try {
+    if(!System.properties['os.name'].toLowerCase().contains('nix')) {
         commandLine 'cargo', 'build', '--release'
-    } catch(ignored) {
+    } else {
         commandLine '~/.cargo/bin/cargo', 'build', '--release'
     }
     doLast {
