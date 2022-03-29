@@ -5069,7 +5069,7 @@ foreign_class!(
 "#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct RqSlData(SlotArg);
 
 impl LocoNetMessage for RqSlData {
@@ -5081,16 +5081,60 @@ impl LocoNetMessage for RqSlData {
 impl RqSlData {
     pub fn new(slot: SlotArg) -> Self { RqSlData(slot) }
     pub fn get_slot(&self) -> SlotArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class RqSlData {
-    self_type RqSlData;
-    constructor RqSlData::new(slot: SlotArg) -> RqSlData;
-    fn RqSlData::get_slot(&self) -> SlotArg; alias getSlot;
-    fn RqSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for RqSlData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RqSlData({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Request slot data or status block
+    class RqSlData {
+        self_type RqSlData;
+        /// @param slot The slot to request data for
+        constructor RqSlData::new(slot: SlotArg) -> RqSlData;
+        /// @return The slot to request data for
+        fn RqSlData::get_slot(&self) -> SlotArg; alias getSlot;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn RqSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwState(switch)"
+        fn RqSlData::to_string(&self) -> String; alias toString;
+        /// Checks whether this RqSlData is equal to another RqSlData
+        /// @param other The RqSlData to compare to
+        /// @return If this RqSlData is equal to the other RqSlData
+        fn RqSlData::eq(&self, other: &RqSlData) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((RqSlData) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MoveSlots(SlotArg, SlotArg);
 
 impl LocoNetMessage for MoveSlots {
@@ -5105,17 +5149,64 @@ impl MoveSlots {
     }
     pub fn get_slot_from(&self) -> SlotArg { self.0 }
     pub fn get_slot_to(&self) -> SlotArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class MoveSlots {
-    self_type MoveSlots;
-    constructor MoveSlots::new(slotFrom: SlotArg, slotTo: SlotArg) -> MoveSlots;
-    fn MoveSlots::get_slot_from(&self) -> SlotArg; alias getSlotFrom;
-    fn MoveSlots::get_slot_to(&self) -> SlotArg; alias getSlotTo;
-    fn MoveSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for MoveSlots {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MoveSlots(from: {}, to: {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Move slot data from source to destination
+    class MoveSlots {
+        self_type MoveSlots;
+        /// Moves the slot data from source to destination
+        /// @param slotFrom The source slot
+        /// @param slotTo The destination slot
+        constructor MoveSlots::new(slotFrom: SlotArg, slotTo: SlotArg) -> MoveSlots;
+        /// @return The source slot
+        fn MoveSlots::get_slot_from(&self) -> SlotArg; alias getSlotFrom;
+        /// @return The destination slot
+        fn MoveSlots::get_slot_to(&self) -> SlotArg; alias getSlotTo;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn MoveSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "MoveSlots(from, to)"
+        fn MoveSlots::to_string(&self) -> String; alias toString;
+        /// Checks whether this MoveSlots is equal to another MoveSlots
+        /// @param other The MoveSlots to compare to
+        /// @return If this MoveSlots is equal to the other MoveSlots
+        fn MoveSlots::eq(&self, other: &MoveSlots) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((MoveSlots) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlotFrom(), this.getSlotTo());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LinkSlots(SlotArg, SlotArg);
 
 impl LocoNetMessage for LinkSlots {
@@ -5130,17 +5221,64 @@ impl LinkSlots {
     }
     pub fn get_slot1(&self) -> SlotArg { self.0 }
     pub fn get_slot2(&self) -> SlotArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LinkSlots {
-    self_type LinkSlots;
-    constructor LinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> LinkSlots;
-    fn LinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
-    fn LinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
-    fn LinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LinkSlots {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LinkSlots({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Link slot1 to slot2
+    class LinkSlots {
+        self_type LinkSlots;
+        /// Link slot1 to slot2
+        /// @param slot1 The slot to link
+        /// @param slot2 The slot to link to
+        constructor LinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> LinkSlots;
+        /// @return The slot to link
+        fn LinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
+        /// @return The slot to link to
+        fn LinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LinkSlots(slot1, slot2)"
+        fn LinkSlots::to_string(&self) -> String; alias toString;
+        /// Checks whether this LinkSlots is equal to another LinkSlots
+        /// @param other The LinkSlots to compare to
+        /// @return If this LinkSlots is equal to the other LinkSlots
+        fn LinkSlots::eq(&self, other: &LinkSlots) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LinkSlots) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot1(), this.getSlot2());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UnlinkSlots(SlotArg, SlotArg);
 
 impl LocoNetMessage for UnlinkSlots {
@@ -5155,17 +5293,64 @@ impl UnlinkSlots {
     }
     pub fn get_slot1(&self) -> SlotArg { self.0 }
     pub fn get_slot2(&self) -> SlotArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class UnlinkSlots {
-    self_type UnlinkSlots;
-    constructor UnlinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> UnlinkSlots;
-    fn UnlinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
-    fn UnlinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
-    fn UnlinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for UnlinkSlots {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "UnlinkSlots({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Unlink slot1 from slot2
+    class UnlinkSlots {
+        self_type UnlinkSlots;
+        /// Unlink slot1 from slot2
+        /// @param slot1 The slot to unlink
+        /// @param slot2 The slot to unlink from
+        constructor UnlinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> UnlinkSlots;
+        /// @return slot1 The slot to unlink
+        fn UnlinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
+        /// @return slot2 The slot to unlink from
+        fn UnlinkSlots::get_slot2(&self) -> SlotArg; alias getSlot2;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn UnlinkSlots::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "UnlinkSlots(slot1, slot2)"
+        fn UnlinkSlots::to_string(&self) -> String; alias toString;
+        /// Checks whether this UnlinkSlots is equal to another UnlinkSlots
+        /// @param other The UnlinkSlots to compare to
+        /// @return If this UnlinkSlots is equal to the other UnlinkSlots
+        fn UnlinkSlots::eq(&self, other: &UnlinkSlots) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((UnlinkSlots) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot1(), this.getSlot2());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ConsistFunc(SlotArg, DirfArg);
 
 impl LocoNetMessage for ConsistFunc {
@@ -5180,17 +5365,64 @@ impl ConsistFunc {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dirf(&self) -> DirfArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class ConsistFunc {
-    self_type ConsistFunc;
-    constructor ConsistFunc::new(slot: SlotArg, dirf: DirfArg) -> ConsistFunc;
-    fn ConsistFunc::get_slot(&self) -> SlotArg; alias getSlot;
-    fn ConsistFunc::get_dirf(&self) -> DirfArg; alias getDirf;
-    fn ConsistFunc::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for ConsistFunc {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ConsistFunc({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Set function bits in a consist uplink element
+    class ConsistFunc {
+        self_type ConsistFunc;
+        /// Set function bits in a consist uplink element
+        /// @param slot The slot to get uplink element from
+        /// @param dirf The function to set
+        constructor ConsistFunc::new(slot: SlotArg, dirf: DirfArg) -> ConsistFunc;
+        /// @return The slot to get uplink element from
+        fn ConsistFunc::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The function to set
+        fn ConsistFunc::get_dirf(&self) -> DirfArg; alias getDirf;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn ConsistFunc::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "ConsistFunc(slot, dirf)"
+        fn ConsistFunc::to_string(&self) -> String; alias toString;
+        /// Checks whether this ConsistFunc is equal to another ConsistFunc
+        /// @param other The ConsistFunc to compare to
+        /// @return If this ConsistFunc is equal to the other ConsistFunc
+        fn ConsistFunc::eq(&self, other: &ConsistFunc) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((ConsistFunc) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getDirf());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SlotStat1(SlotArg, Stat1Arg);
 
 impl LocoNetMessage for SlotStat1 {
@@ -5205,17 +5437,64 @@ impl SlotStat1 {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_stat1(&self) -> Stat1Arg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SlotStat1 {
-    self_type SlotStat1;
-    constructor SlotStat1::new(slot: SlotArg, dirf: Stat1Arg) -> SlotStat1;
-    fn SlotStat1::get_slot(&self) -> SlotArg; alias getSlot;
-    fn SlotStat1::get_stat1(&self) -> Stat1Arg; alias getStat1;
-    fn SlotStat1::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SlotStat1 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SlotStat1({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Writes slot stat1 to slot
+    class SlotStat1 {
+        self_type SlotStat1;
+        /// Write slot stat1 to slot
+        /// @param slot The slot to write to
+        /// @param stat1 The stat1 to write to the slot
+        constructor SlotStat1::new(slot: SlotArg, stat1: Stat1Arg) -> SlotStat1;
+        /// @return The slot to write to
+        fn SlotStat1::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The stat1 to write
+        fn SlotStat1::get_stat1(&self) -> Stat1Arg; alias getStat1;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SlotStat1::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SlotStat1(slot, stat1)"
+        fn SlotStat1::to_string(&self) -> String; alias toString;
+        /// Checks whether this SlotStat1 is equal to another SwState
+        /// @param other The SlotStat1 to compare to
+        /// @return If this SlotStat1 is equal to the other SwState
+        fn SlotStat1::eq(&self, other: &SlotStat1) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SlotStat1) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getStat1());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LongAck(LopcArg, Ack1Arg);
 
 impl LocoNetMessage for LongAck {
@@ -5230,17 +5509,64 @@ impl LongAck {
     }
     pub fn get_lopc(&self) -> LopcArg { self.0 }
     pub fn get_ack1(&self) -> Ack1Arg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LongAck {
-    self_type LongAck;
-    constructor LongAck::new(lopc: LopcArg, ack1: Ack1Arg) -> LongAck;
-    fn LongAck::get_lopc(&self) -> LopcArg; alias getLopc;
-    fn LongAck::get_ack1(&self) -> Ack1Arg; alias getAck1;
-    fn LongAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LongAck {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LongAck({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Long acknowledgement method. Answer to various messages
+    class LongAck {
+        self_type LongAck;
+        /// Long acknowledgement answer
+        /// @param lopc Copy of the op code with seventh bit set to zero
+        /// @param ack1 Answer code (0 = error)
+        constructor LongAck::new(lopc: LopcArg, ack1: Ack1Arg) -> LongAck;
+        /// @return Copy of the op code with seventh bit set to zero
+        fn LongAck::get_lopc(&self) -> LopcArg; alias getLopc;
+        /// @return Answer code (0 = error)
+        fn LongAck::get_ack1(&self) -> Ack1Arg; alias getAck1;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LongAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LongAck(lopc, ack1)"
+        fn LongAck::to_string(&self) -> String; alias toString;
+        /// Checks whether this LongAck is equal to another LongAck
+        /// @param other The LongAck to compare to
+        /// @return If this LongAck is equal to the other LongAck
+        fn LongAck::eq(&self, other: &LongAck) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LongAck) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getLopc(), this.getAck1());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct InputRep(InArg);
 
 impl LocoNetMessage for InputRep {
@@ -5254,16 +5580,61 @@ impl InputRep {
         InputRep(in_arg)
     }
     pub fn get_in_arg(&self) -> InArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class InputRep {
-    self_type InputRep;
-    constructor InputRep::new(inArg: InArg) -> InputRep;
-    fn InputRep::get_in_arg(&self) -> InArg; alias getInArg;
-    fn InputRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for InputRep {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "InputRep({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// General sensor input
+    class InputRep {
+        self_type InputRep;
+        /// General sensor input
+        /// @param inArg The sensor input and address
+        constructor InputRep::new(inArg: InArg) -> InputRep;
+        /// @return The sensor input and address
+        fn InputRep::get_in_arg(&self) -> InArg; alias getInArg;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn InputRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "InputRep(in_arg)"
+        fn InputRep::to_string(&self) -> String; alias toString;
+        /// Checks whether this InputRep is equal to another InputRep
+        /// @param other The InputRep to compare to
+        /// @return If this InputRep is equal to the other InputRep
+        fn InputRep::eq(&self, other: &InputRep) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((InputRep) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getInArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SwRep(SnArg);
 
 impl LocoNetMessage for SwRep {
@@ -5277,16 +5648,61 @@ impl SwRep {
         SwRep(sn_arg)
     }
     pub fn get_sn_arg(&self) -> SnArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SwRep {
-    self_type SwRep;
-    constructor SwRep::new(snArg: SnArg) -> SwRep;
-    fn SwRep::get_sn_arg(&self) -> SnArg; alias getSnArg;
-    fn SwRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SwRep {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SwRep({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Turnout sensor state report
+    class SwRep {
+        self_type SwRep;
+        /// Turnout sensor state report
+        /// @param snArg The sensor state report
+        constructor SwRep::new(snArg: SnArg) -> SwRep;
+        /// @return Sensor state report
+        fn SwRep::get_sn_arg(&self) -> SnArg; alias getSnArg;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SwRep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwRep(sn_arg)"
+        fn SwRep::to_string(&self) -> String; alias toString;
+        /// Checks whether this SwRep is equal to another SwRep
+        /// @param other The SwRep to compare to
+        /// @return If this SwRep is equal to the other SwRep
+        fn SwRep::eq(&self, other: &SwRep) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SwRep) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSnArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SwReq(SwitchArg);
 
 impl LocoNetMessage for SwReq {
@@ -5300,16 +5716,61 @@ impl SwReq {
         SwReq(switch_arg)
     }
     pub fn get_switch_arg(&self) -> SwitchArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SwReq {
-    self_type SwReq;
-    constructor SwReq::new(switchArg: SwitchArg) -> SwReq;
-    fn SwReq::get_switch_arg(&self) -> SwitchArg; alias getSwitchArg;
-    fn SwReq::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SwReq {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SwReq({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Request switch function
+    class SwReq {
+        self_type SwReq;
+        /// Request switch function
+        /// @param switchArg The switch and function to request
+        constructor SwReq::new(switchArg: SwitchArg) -> SwReq;
+        /// @return The switch and function to request
+        fn SwReq::get_switch_arg(&self) -> SwitchArg; alias getSwitchArg;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SwReq::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwReq(switch)"
+        fn SwReq::to_string(&self) -> String; alias toString;
+        /// Checks whether this SwReq is equal to another SwReq
+        /// @param other The SwReq to compare to
+        /// @return If this SwReq is equal to the other SwReq
+        fn SwReq::eq(&self, other: &SwReq) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SwReq) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSwitchArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LocoSnd(SlotArg, SndArg);
 
 impl LocoNetMessage for LocoSnd {
@@ -5324,17 +5785,64 @@ impl LocoSnd {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_snd(&self) -> SndArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LocoSnd {
-    self_type LocoSnd;
-    constructor LocoSnd::new(slot: SlotArg, snd: SndArg) -> LocoSnd;
-    fn LocoSnd::get_slot(&self) -> SlotArg; alias getSlot;
-    fn LocoSnd::get_snd(&self) -> SndArg; alias getSnd;
-    fn LocoSnd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LocoSnd {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LocoSnd({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Sets slot sound function
+    class LocoSnd {
+        self_type LocoSnd;
+        /// Sets slot sound function
+        /// @param slot The slot to set the sound function to
+        /// @param snd The sound function to set
+        constructor LocoSnd::new(slot: SlotArg, snd: SndArg) -> LocoSnd;
+        /// @return The slot to set the sound function to
+        fn LocoSnd::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The sound function to set
+        fn LocoSnd::get_snd(&self) -> SndArg; alias getSnd;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LocoSnd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LocoSnd(slot, snd)"
+        fn LocoSnd::to_string(&self) -> String; alias toString;
+        /// Checks whether this LocoSnd is equal to another LocoSnd
+        /// @param other The LocoSnd to compare to
+        /// @return If this LocoSnd is equal to the other LocoSnd
+        fn LocoSnd::eq(&self, other: &LocoSnd) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LocoSnd) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getSnd());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LocoDirf(SlotArg, DirfArg);
 
 impl LocoNetMessage for LocoDirf {
@@ -5349,17 +5857,64 @@ impl LocoDirf {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dirf(&self) -> DirfArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LocoDirf {
-    self_type LocoDirf;
-    constructor LocoDirf::new(slot: SlotArg, dirf: DirfArg) -> LocoDirf;
-    fn LocoDirf::get_slot(&self) -> SlotArg; alias getSlot;
-    fn LocoDirf::get_dirf(&self) -> DirfArg; alias getDirf;
-    fn LocoDirf::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LocoDirf {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LocoDirf({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Set slot direction and functions 0 - 4
+    class LocoDirf {
+        self_type LocoDirf;
+        /// Set slot direction and functions 0 - 4
+        /// @param slot The slot to set the direction and function to
+        /// @param dirf The direction and function arguments
+        constructor LocoDirf::new(slot: SlotArg, dirf: DirfArg) -> LocoDirf;
+        /// @return The slot to set the direction and function to
+        fn LocoDirf::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The direction and function arguments
+        fn LocoDirf::get_dirf(&self) -> DirfArg; alias getDirf;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LocoDirf::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LocoDirf(slot, dirf)"
+        fn LocoDirf::to_string(&self) -> String; alias toString;
+        /// Checks whether this LocoDirf is equal to another LocoDirf
+        /// @param other The LocoDirf to compare to
+        /// @return If this LocoDirf is equal to the other LocoDirf
+        fn LocoDirf::eq(&self, other: &LocoDirf) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LocoDirf) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getDirf());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LocoSpd(SlotArg, SpeedArg);
 
 impl LocoNetMessage for LocoSpd {
@@ -5377,18 +5932,68 @@ impl LocoSpd {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_spd(&self) -> SpeedArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LocoSpd {
-    self_type LocoSpd;
-    constructor LocoSpd::new(slot: SlotArg, spd: SpeedArg) -> LocoSpd;
-    constructor LocoSpd::new_easy(slot: SlotArg, spd: u16) -> LocoSpd;
-    fn LocoSpd::get_slot(&self) -> SlotArg; alias getSlot;
-    fn LocoSpd::get_spd(&self) -> SpeedArg; alias getSpd;
-    fn LocoSpd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LocoSpd {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SwState({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Set the slots speed
+    class LocoSpd {
+        self_type LocoSpd;
+        /// Sets the slots speed
+        /// @param slot The slot to set the speed to
+        /// @param spd The speed to set
+        constructor LocoSpd::new(slot: SlotArg, spd: SpeedArg) -> LocoSpd;
+        /// Sets the slot speed
+        /// @param slot The slot to set the speed to
+        /// @param spd The speed to set. Only values between 0 and 128 are allowed here. Speed of 1 is emergency stop and other speeds are their value minus 1
+        constructor LocoSpd::new_easy(slot: SlotArg, spd: u16) -> LocoSpd;
+        /// @return The slot to set the speed to
+        fn LocoSpd::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The speed to set
+        fn LocoSpd::get_spd(&self) -> SpeedArg; alias getSpd;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LocoSpd::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LocoSpd(slot, spd)"
+        fn LocoSpd::to_string(&self) -> String; alias toString;
+        /// Checks whether this LocoSpd is equal to another LocoSpd
+        /// @param other The LocoSpd to compare to
+        /// @return If this LocoSpd is equal to the other LocoSpd
+        fn LocoSpd::eq(&self, other: &LocoSpd) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LocoSpd) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getSpd());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MultiSense(MultiSenseArg, AddressArg);
 
 impl LocoNetMessage for MultiSense {
@@ -5403,17 +6008,64 @@ impl MultiSense {
     }
     pub fn get_multi_sense_arg(&self) -> MultiSenseArg { self.0 }
     pub fn get_sense_adr(&self) -> AddressArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class MultiSense {
-    self_type MultiSense;
-    constructor MultiSense::new(multiSenseArg: MultiSenseArg, senseAdr: AddressArg) -> MultiSense;
-    fn MultiSense::get_multi_sense_arg(&self) -> MultiSenseArg; alias getMultiSenseArg;
-    fn MultiSense::get_sense_adr(&self) -> AddressArg; alias getSenseArg;
-    fn MultiSense::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for MultiSense {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "multi_sense: ({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Power management and transponding message
+    class MultiSense {
+        self_type MultiSense;
+        /// Power management and transponding message
+        /// @param multiSenseArg The multi sense part
+        /// @param senseAdr The sense address
+        constructor MultiSense::new(multiSenseArg: MultiSenseArg, senseAdr: AddressArg) -> MultiSense;
+        /// @return The multi sense part
+        fn MultiSense::get_multi_sense_arg(&self) -> MultiSenseArg; alias getMultiSenseArg;
+        /// @return The sense address
+        fn MultiSense::get_sense_adr(&self) -> AddressArg; alias getSenseAdr;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn MultiSense::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "MultiSense(multi_sense_arg, sense_address)"
+        fn MultiSense::to_string(&self) -> String; alias toString;
+        /// Checks whether this MultiSense is equal to another MultiSense
+        /// @param other The MultiSense to compare to
+        /// @return If this MultiSense is equal to the other MultiSense
+        fn MultiSense::eq(&self, other: &MultiSense) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((MultiSense) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getMultiSenseArg(), this.getSenseAdr());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct UhliFun(SlotArg, FunctionArg);
 
 impl LocoNetMessage for UhliFun {
@@ -5428,17 +6080,64 @@ impl UhliFun {
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_function(&self) -> FunctionArg { self.1 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class UhliFun {
-    self_type UhliFun;
-    constructor UhliFun::new(slot: SlotArg, function: FunctionArg) -> UhliFun;
-    fn UhliFun::get_slot(&self) -> SlotArg; alias getSlot;
-    fn UhliFun::get_function(&self) -> FunctionArg; alias getFunction;
-    fn UhliFun::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for UhliFun {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "UhliFun({}, {})", self.0, self.1)
+    }
+}
+
+foreign_class!(
+    /// Uhlenbrock slot function setting (f9 - f28)
+    class UhliFun {
+        self_type UhliFun;
+        /// Sets the function values to the given slot
+        /// @param slot The slot to set the function values to
+        /// @param function The function values to set
+        constructor UhliFun::new(slot: SlotArg, function: FunctionArg) -> UhliFun;
+        /// @return The slot to set the function values to
+        fn UhliFun::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The function values
+        fn UhliFun::get_function(&self) -> FunctionArg; alias getFunction;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn UhliFun::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "UhliFun(slot, function_arg)"
+        fn UhliFun::to_string(&self) -> String; alias toString;
+        /// Checks whether this UhliFun is equal to another UhliFun
+        /// @param other The UhliFun to compare to
+        /// @return If this UhliFun is equal to the other UhliFun
+        fn UhliFun::eq(&self, other: &UhliFun) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((UhliFun) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getFunction());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WrSlData(WrSlDataStructure);
 
 impl LocoNetMessage for WrSlData {
@@ -5452,16 +6151,61 @@ impl WrSlData {
         WrSlData(slot_data)
     }
     pub fn get_slot_data_structure(&self) -> WrSlDataStructure { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class WrSlData {
-    self_type WrSlData;
-    constructor WrSlData::new(slotData: WrSlDataStructure) -> WrSlData;
-    fn WrSlData::get_slot_data_structure(&self) -> WrSlDataStructure; alias getSlotDataStructure;
-    fn WrSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for WrSlData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+foreign_class!(
+    /// Writes data to a slot. This op code has variable encodings
+    class WrSlData {
+        self_type WrSlData;
+        /// A new write slot data message
+        /// @param slotData The slot write data structure to create the message of
+        constructor WrSlData::new(slotData: WrSlDataStructure) -> WrSlData;
+        /// @return The slot write data structure to create the message of
+        fn WrSlData::get_slot_data_structure(&self) -> WrSlDataStructure; alias getSlotDataStructure;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn WrSlData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwState(switch)"
+        fn WrSlData::to_string(&self) -> String; alias toString;
+        /// Checks whether this WrSlData is equal to another WrSlData
+        /// @param other The WrSlData to compare to
+        /// @return If this WrSlData is equal to the other WrSlData
+        fn WrSlData::eq(&self, other: &WrSlData) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WrSlData) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlotDataStructure());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SlRdData(SlotArg, Stat1Arg, AddressArg, SpeedArg, DirfArg, TrkArg, Stat2Arg, SndArg, IdArg);
 
 impl LocoNetMessage for SlRdData {
@@ -5484,24 +6228,84 @@ impl SlRdData {
     pub fn get_stat2(&self) -> Stat2Arg { self.6 }
     pub fn get_snd(&self) -> SndArg { self.7 }
     pub fn get_id(&self) -> IdArg { self.8 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SlRdData {
-    self_type SlRdData;
-    constructor SlRdData::new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> SlRdData;
-    fn SlRdData::get_slot(&self) -> SlotArg; alias getSlot;
-    fn SlRdData::get_stat1(&self) -> Stat1Arg; alias getStat1;
-    fn SlRdData::get_address(&self) -> AddressArg; alias getAddress;
-    fn SlRdData::get_speed(&self) -> SpeedArg; alias getSpeed;
-    fn SlRdData::get_dirf(&self) -> DirfArg; alias getDirf;
-    fn SlRdData::get_trk(&self) -> TrkArg; alias getTrk;
-    fn SlRdData::get_stat2(&self) -> Stat2Arg; alias getStat2;
-    fn SlRdData::get_snd(&self) -> SndArg; alias getSnd;
-    fn SlRdData::get_id(&self) -> IdArg; alias getId;
-    fn SlRdData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SlRdData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SlRdData({}, {}, {}, {}, {}, {}, {}, {}, {})", self.0, self.1, self.2, self.3, self.4, self.5, self.6, self.7, self.8)
+    }
+}
+
+foreign_class!(
+    /// Slot data response
+    class SlRdData {
+        self_type SlRdData;
+        /// Slot data response
+        /// @param slot The slot the response is for
+        /// @param stat1 The slots status with speed steps
+        /// @param address The trains address bound to this slot
+        /// @param speed The trains speed
+        /// @param dirf The trains direction and functions 0 - 4
+        /// @param trk Global system track status
+        /// @param stat2 More slot status information
+        /// @param id Throttle or PC ID if slot status 2 is id encoded alias
+        constructor SlRdData::new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> SlRdData;
+        /// @return The slot the response is for
+        fn SlRdData::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The slots status with speed steps
+        fn SlRdData::get_stat1(&self) -> Stat1Arg; alias getStat1;
+        /// @return The trains address bound to this slot
+        fn SlRdData::get_address(&self) -> AddressArg; alias getAddress;
+        /// @return The trains speed
+        fn SlRdData::get_speed(&self) -> SpeedArg; alias getSpeed;
+        /// @return The trains direction and functions 0 - 4
+        fn SlRdData::get_dirf(&self) -> DirfArg; alias getDirf;
+        /// @return Global system track status
+        fn SlRdData::get_trk(&self) -> TrkArg; alias getTrk;
+        /// @return More slot status information
+        fn SlRdData::get_stat2(&self) -> Stat2Arg; alias getStat2;
+        /// @return The sound information of this slot
+        fn SlRdData::get_snd(&self) -> SndArg; alias getSnd;
+        /// @return Throttle or PC ID if slot status 2 is id encoded alias
+        fn SlRdData::get_id(&self) -> IdArg; alias getId;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SlRdData::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SlRdData(slot, stat1, address, speed, dirf, trk, stat2, snd, id)"
+        fn SlRdData::to_string(&self) -> String; alias toString;
+        /// Checks whether this SlRdData is equal to another SlRdData
+        /// @param other The SlRdData to compare to
+        /// @return If this SlRdData is equal to the other SlRdData
+        fn SlRdData::eq(&self, other: &SlRdData) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SlRdData) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ImmPacket(ImArg);
 
 impl LocoNetMessage for ImmPacket {
@@ -5515,16 +6319,61 @@ impl ImmPacket {
         ImmPacket(im_arg)
     }
     pub fn get_im_arg(&self) -> ImArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class ImmPacket {
-    self_type ImmPacket;
-    constructor ImmPacket::new(imArg: ImArg) -> ImmPacket;
-    fn ImmPacket::get_im_arg(&self) -> ImArg; alias getImArg;
-    fn ImmPacket::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for ImmPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ImmPacket({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Send immediate m byte packet (Digitrax f9 - f28)
+    class ImmPacket {
+        self_type ImmPacket;
+        /// Send immediate m byte packet (Digitrax f9 - f28)
+        /// @param imArg The im message
+        constructor ImmPacket::new(imArg: ImArg) -> ImmPacket;
+        /// @return The im message
+        fn ImmPacket::get_im_arg(&self) -> ImArg; alias getImArg;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn ImmPacket::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "ImmPacket(im_arg)"
+        fn ImmPacket::to_string(&self) -> String; alias toString;
+        /// Checks whether this ImmPacket is equal to another ImmPacket
+        /// @param other The ImmPacket to compare to
+        /// @return If this ImmPacket is equal to the other ImmPacket
+        fn ImmPacket::eq(&self, other: &ImmPacket) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((ImmPacket) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getImArg());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rep(RepStructure);
 
 impl LocoNetMessage for Rep {
@@ -5543,16 +6392,61 @@ impl Rep {
         Rep(rep)
     }
     pub fn get_rep(&self) -> RepStructure { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Rep {
-    self_type Rep;
-    constructor Rep::new(rep: RepStructure) -> Rep;
-    fn Rep::get_rep(&self) -> RepStructure; alias getRep;
-    fn Rep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for Rep {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+foreign_class!(
+    /// A report message, get the type over the report structure.
+    class Rep {
+        self_type Rep;
+        /// A report message.
+        /// @param rep The report structure of this message
+        constructor Rep::new(rep: RepStructure) -> Rep;
+        /// @return This methods report structure
+        fn Rep::get_rep(&self) -> RepStructure; alias getRep;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn Rep::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "report_structure"
+        fn Rep::to_string(&self) -> String; alias toString;
+        /// Checks whether this Rep is equal to another Rep
+        /// @param other The Rep to compare to
+        /// @return If this Rep is equal to the other Rep
+        fn Rep::eq(&self, other: &Rep) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Rep) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getRep());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PeerXfer(SlotArg, DstArg, PxctData);
 
 impl LocoNetMessage for PeerXfer {
@@ -5568,27 +6462,79 @@ impl PeerXfer {
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dst(&self) -> DstArg { self.1 }
     pub fn get_pxct(&self) -> PxctData { self.2 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class PeerXfer {
-    self_type PeerXfer;
-    constructor PeerXfer::new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> PeerXfer;
-    fn PeerXfer::get_slot(&self) -> SlotArg; alias getSlot;
-    fn PeerXfer::get_dst(&self) -> DstArg; alias getDst;
-    fn PeerXfer::get_pxct(&self) -> PxctData; alias getPxct;
-    fn PeerXfer::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for PeerXfer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PeerXfer({}, {}, {})", self.0, self.1, self.2)
+    }
+}
+
+foreign_class!(
+    /// Moves 8 bytes peer to peer from the source to the destination
+    class PeerXfer {
+        self_type PeerXfer;
+        /// Moves 8 bytes peer to peer from the source to the destination
+        /// @param slot The slot to get the data from
+        /// @param dst The destination to move the byte to
+        /// @param pxct The pxct data bytes to move
+        constructor PeerXfer::new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> PeerXfer;
+        /// @return The slot to get the data from
+        fn PeerXfer::get_slot(&self) -> SlotArg; alias getSlot;
+        /// @return The destination to move the byte to
+        fn PeerXfer::get_dst(&self) -> DstArg; alias getDst;
+        /// @return The pxct data bytes to move
+        fn PeerXfer::get_pxct(&self) -> PxctData; alias getPxct;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn PeerXfer::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "PeerXfer(slot, dst, pxct)"
+        fn PeerXfer::to_string(&self) -> String; alias toString;
+        /// Checks whether this PeerXfer is equal to another PeerXfer
+        /// @param other The PeerXfer to compare to
+        /// @return If this PeerXfer is equal to the other PeerXfer
+        fn PeerXfer::eq(&self, other: &PeerXfer) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((PeerXfer) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSlot(), this.getDst(), this.getPxct());
+    }
+"#;
 });
 
 pub fn get_all_ports() -> Vec<String> {
     serialport::available_ports().expect("No ports found").into_iter().map(|port_info| port_info.port_name).collect()
 }
 
-foreign_class!(class PortInfos {
-    fn get_all_ports() -> Vec<String>; alias getAllPorts;
+foreign_class!(
+    /// Helper class for getting all ports
+    class PortInfos {
+        /// @return All known serial ports from this system
+        fn get_all_ports() -> Vec<String>; alias getAllPorts;
 });
 
 #[repr(u8)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Message {
     Idle(Idle),
     GpOn(GpOn),
