@@ -11,7 +11,9 @@ A fully functional Java library for controlling a model train railroad based on 
 
 ## Importing the LocoDrive
 
-For now there is no release of this software to be imported in other projects. So if you want to use this project, clone this repository locally and build it yourself. Please note that this repository is system dependent. So you need to build its rust native for every system you want to use.
+You can use the github package to embed the locodrive as library in your maven or gradle java repositories. This jar has a natives file for every system (windows, linux and debian) inside to run on most of these devices.
+
+If you want a specialized version or build this your own you can clone this repository locally and build it yourself. Please note that this repository is system dependent. So you need to build its rust native for every system you want to use.
 
 ## Using the LocoDrive
 
@@ -21,7 +23,7 @@ The LocoDrive has a class called LocoNetHandler. With this class you can open a 
 
 ### Setting up the project
 
-To set up the project yourself you need the clang library for building the rust binary file, also you need gradle and rust installed. An initialisation script will be added to this repository in near future.
+To set up the project yourself you need the clang library for building the rust binary file, also you need gradle and rust installed. An initialisation script for linux based systems is under setup_scripts in this repository.
 
 ### Commitment rules
 
@@ -47,9 +49,9 @@ Please note: Always add me to your pull request to test your changes with an act
 | Dependency                 | Version | License     |
 |----------------------------|---------|-------------|
 | JetBrains Java Annotations | 20.1.0  | Apache v2.0 |
-|||
 | noisruker event-manager    | 1.1.0   | GPL v3.0    |
 | noisruker logger           | 1.0.3   | GPL v3.0    |
+| NativeUtils                | ?       | MIT         |
 
 ### Loco Net information
 
