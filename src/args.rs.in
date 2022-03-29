@@ -3600,13 +3600,22 @@ impl Display for WrSlDataStructure {
 }
 
 foreign_class!(
-    /// A write slot data
+    /// A write slot data structure
     class WrSlDataStructure {
         self_type WrSlDataStructure;
+        /// Creates a new write slot data structure
+        /// @param slot_type 0x7C = pt_slot, 0x7B = time_slot, else general slot
+        /// @param general_slot The general slot to use
+        /// @param pt_slot The pt slot to use
+        /// @param time_slot The time slot to use
         constructor WrSlDataStructure::new(slot_type: u8, general_slot: WrSlDataTime, pt_slot: WrSlDataPt, time_slot: WrSlDataGeneral) -> WrSlDataStructure;
+        /// @return The slots type (0x7C = pt_slot, 0x7B = time_slot, else general slot)
         fn WrSlDataStructure::slot_type(&self) -> u8; alias slotType;
+        /// @return The time slot write structure
         fn WrSlDataStructure::time_slot(&self) -> WrSlDataTime; alias timeSlot;
+        /// @return The pt slot write structure
         fn WrSlDataStructure::pt_slot(&self) -> WrSlDataPt; alias ptSlot;
+        /// @return The general slot write structure
         fn WrSlDataStructure::general_slot(&self) -> WrSlDataGeneral; alias generalSlot;
         /// @return A string in the format "wr_sl_data_structure: (type: type, general_slot, pt_slot, time_slot)"
         fn WrSlDataStructure::to_string(&self) -> String; alias toString;
@@ -3638,7 +3647,7 @@ foreign_class!(
 "#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LissyIrReport {
     arg1: u8,
     dir: bool,
@@ -3698,19 +3707,77 @@ impl LissyIrReport {
     pub fn address(&self) -> u16 {
         self.address
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LissyIrReport {
-    self_type LissyIrReport;
-    constructor LissyIrReport::new(dir: bool, unit: u16, address: u16, arg6: u8) -> LissyIrReport;
-    fn LissyIrReport::arg1(&self) -> u8;
-    fn LissyIrReport::arg6(&self) -> u8;
-    fn LissyIrReport::dir(&self) -> bool;
-    fn LissyIrReport::unit(&self) -> u16;
-    fn LissyIrReport::address(&self) -> u16;
+impl Display for LissyIrReport {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "lissy_ir_report: (arg1: {}, dir: {}, unit: {}, address: {}, arg6: {})",
+            self.arg1,
+            self.dir,
+            self.unit,
+            self.address,
+            self.arg6
+        )
+    }
+}
+
+foreign_class!(
+    /// Lissy IR report
+    class LissyIrReport {
+        self_type LissyIrReport;
+        /// Creates a new lissy IR report
+        /// @param dir The direction
+        /// @param unit Reports unit
+        /// @param address The address
+        /// @param arg6 Reserved for future use
+        constructor LissyIrReport::new(dir: bool, unit: u16, address: u16, arg6: u8) -> LissyIrReport;
+        /// @return Standard 0x00
+        fn LissyIrReport::arg1(&self) -> u8;
+        /// @return Reserved for future use
+        fn LissyIrReport::arg6(&self) -> u8;
+        /// @return The direction
+        fn LissyIrReport::dir(&self) -> bool;
+        /// @return The reports unit
+        fn LissyIrReport::unit(&self) -> u16;
+        /// @return The address used
+        fn LissyIrReport::address(&self) -> u16;
+        /// @return A string in the format "lissy_ir_report: (arg1: {}, dir: {}, unit: {}, address: {}, arg6: {})"
+        fn LissyIrReport::to_string(&self) -> String; alias toString;
+        /// Checks whether this LissyIrReport is equal to another LissyIrReport
+        /// @param other The LissyIrReport to compare to
+        /// @return If this LissyIrReport is equal to the other LissyIrReport
+        fn LissyIrReport::eq(&self, other: &LissyIrReport) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LissyIrReport) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct RFID5Report {
     arg1: u8,
     address: u16,
@@ -3770,22 +3837,89 @@ impl RFID5Report {
     pub fn rfid_hi(&self) -> u8 {
         self.rfid_hi
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class RFID5Report {
-    self_type RFID5Report;
-    constructor RFID5Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfidHi: u8) -> RFID5Report;
-    fn RFID5Report::arg1(&self) -> u8;
-    fn RFID5Report::rfid0(&self) -> u8;
-    fn RFID5Report::rfid1(&self) -> u8;
-    fn RFID5Report::rfid2(&self) -> u8;
-    fn RFID5Report::rfid3(&self) -> u8;
-    fn RFID5Report::rfid4(&self) -> u8;
-    fn RFID5Report::rfid_hi(&self) -> u8; alias rfidHi;
-    fn RFID5Report::address(&self) -> u16;
+impl Display for RFID5Report {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "rfid5_report: (arg1: {}, address: {}, rfid0: {}, rfid1: {}, rfid2: {}, rfid3: {}, rfid4: {}, rfid_hi: {})",
+            self.arg1,
+            self.address,
+            self.rfid0,
+            self.rfid1,
+            self.rfid2,
+            self.rfid3,
+            self.rfid4,
+            self.rfid_hi
+        )
+    }
+}
+
+foreign_class!(
+    /// A rfid5 report
+    class RFID5Report {
+        self_type RFID5Report;
+        /// Creates a new rfid5 report
+        /// @param address The address to use
+        /// @param rfid0 rfid0 arg
+        /// @param rfid1 rfid1 arg
+        /// @param rfid2 rfid2 arg
+        /// @param rfid3 rfid3 arg
+        /// @param rfid4 rfid4 arg
+        /// @param rfidHi rfid high arg
+        constructor RFID5Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfidHi: u8) -> RFID5Report;
+        /// @return Standard 0x41
+        fn RFID5Report::arg1(&self) -> u8;
+        /// @return rfid0
+        fn RFID5Report::rfid0(&self) -> u8;
+        /// @return rfid1
+        fn RFID5Report::rfid1(&self) -> u8;
+        /// @return rfid2
+        fn RFID5Report::rfid2(&self) -> u8;
+        /// @return rfid3
+        fn RFID5Report::rfid3(&self) -> u8;
+        /// @return rfid4
+        fn RFID5Report::rfid4(&self) -> u8;
+        /// @return rfid high
+        fn RFID5Report::rfid_hi(&self) -> u8; alias rfidHi;
+        /// @return The address to use
+        fn RFID5Report::address(&self) -> u16;
+        /// @return A string in the format "rfid5_report: (arg1: {}, address: {}, rfid0: {}, rfid1: {}, rfid2: {}, rfid3: {}, rfid4: {}, rfid_hi: {})"
+        fn RFID5Report::to_string(&self) -> String; alias toString;
+        /// Checks whether this RFID5Report is equal to another RFID5Report
+        /// @param other The RFID5Report to compare to
+        /// @return If this RFID5Report is equal to the other RFID5Report
+        fn RFID5Report::eq(&self, other: &RFID5Report) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((RFID5Report) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct RFID7Report {
     arg1: u8,
     address: u16,
@@ -3855,24 +3989,97 @@ impl RFID7Report {
     pub fn rfid_hi(&self) -> u8 {
         self.rfid_hi
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class RFID7Report {
-    self_type RFID7Report;
-    constructor RFID7Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfid5: u8, rfid6: u8, rfid_hi: u8) -> RFID7Report;
-    fn RFID7Report::arg1(&self) -> u8;
-    fn RFID7Report::rfid0(&self) -> u8;
-    fn RFID7Report::rfid1(&self) -> u8;
-    fn RFID7Report::rfid2(&self) -> u8;
-    fn RFID7Report::rfid3(&self) -> u8;
-    fn RFID7Report::rfid4(&self) -> u8;
-    fn RFID7Report::rfid5(&self) -> u8;
-    fn RFID7Report::rfid6(&self) -> u8;
-    fn RFID7Report::rfid_hi(&self) -> u8; alias rfidHi;
-    fn RFID7Report::address(&self) -> u16;
+impl Display for RFID7Report {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "rfid5_report: (arg1: {}, address: {}, rfid0: {}, rfid1: {}, rfid2: {}, rfid3: {}, rfid4: {}, rfid5: {}, rfid6: {}, rfid_hi: {})",
+            self.arg1,
+            self.address,
+            self.rfid0,
+            self.rfid1,
+            self.rfid2,
+            self.rfid3,
+            self.rfid4,
+            self.rfid5,
+            self.rfid6,
+            self.rfid_hi
+        )
+    }
+}
+
+foreign_class!(
+    /// Loco net rfid-7 report
+    class RFID7Report {
+        self_type RFID7Report;
+        /// Creates a new rfid7 report
+        /// @param address The address to use
+        /// @param rfid0 rfid0 arg
+        /// @param rfid1 rfid1 arg
+        /// @param rfid2 rfid2 arg
+        /// @param rfid3 rfid3 arg
+        /// @param rfid4 rfid4 arg
+        /// @param rfid5 rfid5 arg
+        /// @param rfid6 rfid6 arg
+        /// @param rfidHi rfid high arg
+        constructor RFID7Report::new(address: u16, rfid0: u8, rfid1: u8, rfid2: u8, rfid3: u8, rfid4: u8, rfid5: u8, rfid6: u8, rfidHi: u8) -> RFID7Report;
+        /// @return Standard 0x41
+        fn RFID7Report::arg1(&self) -> u8;
+        /// @return rfid0
+        fn RFID7Report::rfid0(&self) -> u8;
+        /// @return rfid1
+        fn RFID7Report::rfid1(&self) -> u8;
+        /// @return rfid2
+        fn RFID7Report::rfid2(&self) -> u8;
+        /// @return rfid3
+        fn RFID7Report::rfid3(&self) -> u8;
+        /// @return rfid4
+        fn RFID7Report::rfid4(&self) -> u8;
+        /// @return rfid5
+        fn RFID7Report::rfid5(&self) -> u8;
+        /// @return rfid6
+        fn RFID7Report::rfid6(&self) -> u8;
+        /// @return rfid high
+        fn RFID7Report::rfid_hi(&self) -> u8; alias rfidHi;
+        /// @return The address to use
+        fn RFID7Report::address(&self) -> u16;
+        /// @return A string in the format "rfid7_report: (arg1: {}, address: {}, rfid0: {}, rfid1: {}, rfid2: {}, rfid3: {}, rfid4: {}, rfid5: {}, rfid6: {}, rfid_hi: {})"
+        fn RFID7Report::to_string(&self) -> String; alias toString;
+        /// Checks whether this RFID7Report is equal to another RFID7Report
+        /// @param other The RFID7Report to compare to
+        /// @return If this RFID7Report is equal to the other RFID7Report
+        fn RFID7Report::eq(&self, other: &RFID7Report) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((RFID7Report) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct WheelcntReport {
     arg1: u8,
     unit: u16,
@@ -3924,19 +4131,77 @@ impl WheelcntReport {
     pub fn direction(&self) -> bool {
         self.direction
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class WheelcntReport {
-    self_type WheelcntReport;
-    constructor WheelcntReport::new(unit: u16, direction: bool, count: u16, arg6: u8) -> WheelcntReport;
-    fn WheelcntReport::arg1(&self) -> u8;
-    fn WheelcntReport::arg6(&self) -> u8;
-    fn WheelcntReport::unit(&self) -> u16;
-    fn WheelcntReport::count(&self) -> u16;
-    fn WheelcntReport::direction(&self) -> bool;
+impl Display for WheelcntReport {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wheel_count_report: (arg1: {}, unit: {}, count: {}, direction: {}, arg6: {})",
+            self.arg1,
+            self.unit,
+            self.count,
+            self.direction,
+            self.arg6
+        )
+    }
+}
+
+foreign_class!(
+    /// A wheel counter report
+    class WheelcntReport {
+        self_type WheelcntReport;
+        /// Creates a wheel counter report
+        /// @param unit The reports unit
+        /// @param direction The reports direction
+        /// @param count The wheel count arg
+        /// @param arg6 Reserved for future use
+        constructor WheelcntReport::new(unit: u16, direction: bool, count: u16, arg6: u8) -> WheelcntReport;
+        /// @return Standard 0x40
+        fn WheelcntReport::arg1(&self) -> u8;
+        /// @return Reserved for future use
+        fn WheelcntReport::arg6(&self) -> u8;
+        /// @return The reports unit
+        fn WheelcntReport::unit(&self) -> u16;
+        /// @return The reports wheel count arg
+        fn WheelcntReport::count(&self) -> u16;
+        /// @return The set direction
+        fn WheelcntReport::direction(&self) -> bool;
+        /// @return A string in the format "wheel_count_report: (arg1: {}, unit: {}, count: {}, direction: {}, arg6: {})"
+        fn WheelcntReport::to_string(&self) -> String; alias toString;
+        /// Checks whether this WheelcntReport is equal to another WheelcntReport
+        /// @param other The WheelcntReport to compare to
+        /// @return If this WheelcntReport is equal to the other WheelcntReport
+        fn WheelcntReport::eq(&self, other: &WheelcntReport) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((WheelcntReport) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RepStructure {
     LissyIrReport(LissyIrReport),
     RFID5Report(RFID5Report),
@@ -4017,22 +4282,86 @@ impl RepStructure {
             Self::WheelcntReport(rep) => *rep,
         }
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class RepStructure {
-    self_type RepStructure;
-    constructor RepStructure::new_lissy_ir(rep: LissyIrReport) -> RepStructure;
-    constructor RepStructure::new_rfid_5(rep: RFID5Report, b1: bool) -> RepStructure;
-    constructor RepStructure::new_rfid_7(rep: RFID7Report, b1: bool, b2: bool) -> RepStructure;
-    constructor RepStructure::new_wheelcnt(rep: WheelcntReport, b1: bool, b2: bool, b3: bool) -> RepStructure;
-    fn RepStructure::get_wheelcnt_report(&self) -> WheelcntReport; alias getWheelcntReport;
-    fn RepStructure::get_rfid7_report(&self) -> RFID7Report; alias getRfid7Report;
-    fn RepStructure::get_rfid5_report(&self) -> RFID5Report; alias getRfid5Report;
-    fn RepStructure::get_lissy_ir_report(&self) -> LissyIrReport; alias getLissyIrReport;
-    fn RepStructure::get_type(&self) -> u8; alias getType;
+impl Display for RepStructure {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LissyIrReport(rep) => write!(f, "{}", rep),
+            Self::RFID5Report(rep) => write!(f, "{}", rep),
+            Self::RFID7Report(rep) => write!(f, "{}", rep),
+            Self::WheelcntReport(rep) => write!(f, "{}", rep),
+        }
+    }
+}
+
+foreign_class!(
+    /// Holds a loco net report matching one possible report structure. Please check the type via getType()
+    class RepStructure {
+        self_type RepStructure;
+        /// Creates a report structure with a lissy ir report
+        /// @param rep The report to use
+        constructor RepStructure::new_lissy_ir(rep: LissyIrReport) -> RepStructure;
+        /// Creates a new rfid-5 report
+        /// @param rep The report to use
+        /// @param b1 jni placeholder, set like you want
+        constructor RepStructure::new_rfid_5(rep: RFID5Report, b1: bool) -> RepStructure;
+        /// Creates a new rfid-7 report
+        /// @param rep The report to use
+        /// @param b1 jni placeholder, set like you want
+        /// @param b2 jni placeholder, set like you want
+        constructor RepStructure::new_rfid_7(rep: RFID7Report, b1: bool, b2: bool) -> RepStructure;
+        /// Creates a new wheel count report
+        /// @param rep The report to use
+        /// @param b1 jni placeholder, set like you want
+        /// @param b2 jni placeholder, set like you want
+        /// @param b3 jni placeholder, set like you want
+        constructor RepStructure::new_wheelcnt(rep: WheelcntReport, b1: bool, b2: bool, b3: bool) -> RepStructure;
+        /// @return A wheel count report if type is 3, else panic
+        fn RepStructure::get_wheelcnt_report(&self) -> WheelcntReport; alias getWheelcntReport;
+        /// @return A rfid-7 report if type is 2, else panic
+        fn RepStructure::get_rfid7_report(&self) -> RFID7Report; alias getRfid7Report;
+        /// @return A rfid-5 report if type is 1, else panic
+        fn RepStructure::get_rfid5_report(&self) -> RFID5Report; alias getRfid5Report;
+        /// @return A lissy-ir report if type is 0, else panic
+        fn RepStructure::get_lissy_ir_report(&self) -> LissyIrReport; alias getLissyIrReport;
+        /// @return The reports type: 0 - lissy-ir, 1 - rfid-5, 2 - rfid-7, 3 - wheel count
+        fn RepStructure::get_type(&self) -> u8; alias getType;
+        /// @return The string of the report
+        fn RepStructure::to_string(&self) -> String; alias toString;
+        /// Checks whether this RepStructure is equal to another RepStructure
+        /// @param other The RepStructure to compare to
+        /// @return If this RepStructure is equal to the other RepStructure
+        fn RepStructure::eq(&self, other: &RepStructure) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((RepStructure) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct DstArg(u16);
 
 impl DstArg {
@@ -4056,15 +4385,58 @@ impl DstArg {
     pub fn dst_high(&self) -> u8 {
         (self.0 >> 7) as u8 & 0x7F
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class DstArg {
-    self_type DstArg;
-    constructor DstArg::new(dst: u16) -> DstArg;
-    fn DstArg::dst(&self) -> u16;
+impl Display for DstArg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "dst: {}", self.0)
+    }
+}
+
+foreign_class!(
+    /// The peer x-fers dst arg
+    class DstArg {
+        self_type DstArg;
+        /// Creates a new dst arg
+        /// @param dst The dst to set
+        constructor DstArg::new(dst: u16) -> DstArg;
+        /// @return The dst
+        fn DstArg::dst(&self) -> u16;
+        /// @return A string in the format "dst: {}"
+        fn DstArg::to_string(&self) -> String; alias toString;
+        /// Checks whether this DstArg is equal to another DstArg
+        /// @param other The DstArg to compare to
+        /// @return If this DstArg is equal to the other DstArg
+        fn DstArg::eq(&self, other: &DstArg) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((DstArg) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.dst());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PxctData {
     pxc: u8,
     d1: u8,
@@ -4161,27 +4533,96 @@ impl PxctData {
     pub fn d8(&self) -> u8 {
         self.d8 & 0x3F
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class PxctData {
-    self_type PxctData;
-    constructor PxctData::new(pxc: u8, d1: u8, d2: u8, d3: u8, d4: u8, d5: u8, d6: u8, d7: u8, d8: u8) -> PxctData;
-    fn PxctData::pxc(&self) -> u8;
-    fn PxctData::d1(&self) -> u8;
-    fn PxctData::d2(&self) -> u8;
-    fn PxctData::d3(&self) -> u8;
-    fn PxctData::d4(&self) -> u8;
-    fn PxctData::d5(&self) -> u8;
-    fn PxctData::d6(&self) -> u8;
-    fn PxctData::d7(&self) -> u8;
-    fn PxctData::d8(&self) -> u8;
+impl Display for PxctData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "pxct_data: (pxc: {}, d1: {}, d2: {}, d3: {}, d4: {}, d5: {}, d6: {}, d7: {}, d8: {})",
+            self.pxc,
+            self.d1,
+            self.d2,
+            self.d3,
+            self.d4,
+            self.d5,
+            self.d6,
+            self.d7,
+            self.d8,
+        )
+    }
+}
+
+foreign_class!(
+    /// Holds the peer xfer message data
+    class PxctData {
+        self_type PxctData;
+        /// Creates new peer xfer data
+        /// @param pxc Peer xfer data
+        /// @param d1 The data to transfer (8 bytes total)
+        /// @param d2 The data to transfer (8 bytes total)
+        /// @param d3 The data to transfer (8 bytes total)
+        /// @param d4 The data to transfer (8 bytes total)
+        /// @param d5 The data to transfer (8 bytes total)
+        /// @param d6 The data to transfer (8 bytes total)
+        /// @param d7 The data to transfer (8 bytes total)
+        /// @param d8 The data to transfer (8 bytes total)
+        constructor PxctData::new(pxc: u8, d1: u8, d2: u8, d3: u8, d4: u8, d5: u8, d6: u8, d7: u8, d8: u8) -> PxctData;
+        /// @return The peer xfer data
+        fn PxctData::pxc(&self) -> u8;
+        /// @return The first byte to transfer
+        fn PxctData::d1(&self) -> u8;
+        /// @return The second byte to transfer
+        fn PxctData::d2(&self) -> u8;
+        /// @return The third byte to transfer
+        fn PxctData::d3(&self) -> u8;
+        /// @return The fourth byte to transfer
+        fn PxctData::d4(&self) -> u8;
+        /// @return The fifth byte to transfer
+        fn PxctData::d5(&self) -> u8;
+        /// @return The sixth byte to transfer
+        fn PxctData::d6(&self) -> u8;
+        /// @return The seventh byte to transfer
+        fn PxctData::d7(&self) -> u8;
+        /// @return The eighth byte to transfer
+        fn PxctData::d8(&self) -> u8;
+        /// @return A string in the format "pxct_data: (pxc: {}, d1: {}, d2: {}, d3: {}, d4: {}, d5: {}, d6: {}, d7: {}, d8: {})"
+        fn PxctData::to_string(&self) -> String; alias toString;
+        /// Checks whether this PxctData is equal to another PxctData
+        /// @param other The PxctData to compare to
+        /// @return If this PxctData is equal to the other PxctData
+        fn PxctData::eq(&self, other: &PxctData) -> bool; alias equals;
+    foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((PxctData) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.pxc(), this.d1(), this.d2(), this.d3(), this.d4(), this.d5(), this.d6(), this.d7(), this.d8());
+    }
+"#;
 });
 
 pub trait LocoNetMessage {
     fn send(&self, loco_connector: &mut LocoNetConnector) -> bool;
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Idle();
 
 impl LocoNetMessage for Idle {
@@ -4194,15 +4635,58 @@ impl Idle {
     pub fn new() -> Self {
         Idle()
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Idle {
-    self_type Idle;
-    constructor Idle::new() -> Idle;
-    fn Idle::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for Idle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Idle")
+    }
+}
+
+foreign_class!(
+    /// Loco Nets idle method (Force idle state, B'cast emergency stop)
+    class Idle {
+        self_type Idle;
+        /// Creates a new Idle object
+        constructor Idle::new() -> Idle;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn Idle::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "Idle"
+        fn Idle::to_string(&self) -> String; alias toString;
+        /// Checks whether this Idle is equal to another Idle
+        /// @param other The Idle to compare to
+        /// @return If this Idle is equal to the other Idle
+        fn Idle::eq(&self, other: &Idle) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Idle) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct GpOn();
 
 impl LocoNetMessage for GpOn {
@@ -4211,19 +4695,62 @@ impl LocoNetMessage for GpOn {
     }
 }
 
+impl Display for GpOn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "GpOn")
+    }
+}
+
 impl GpOn {
     pub fn new() -> Self {
         GpOn()
     }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class GpOn {
-    self_type GpOn;
-    constructor GpOn::new() -> GpOn;
-    fn GpOn::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+foreign_class!(
+    /// Loco nets on method (Power on request)
+    class GpOn {
+        self_type GpOn;
+        /// Creates a new loco net on method
+        constructor GpOn::new() -> GpOn;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn GpOn::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "GpOn"
+        fn GpOn::to_string(&self) -> String; alias toString;
+        /// Checks whether this GpOn is equal to another GpOn
+        /// @param other The GpOn to compare to
+        /// @return If this GpOn is equal to the other GpOn
+        fn GpOn::eq(&self, other: &GpOn) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((GpOn) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct GpOff();
 
 impl LocoNetMessage for GpOff {
@@ -4234,15 +4761,58 @@ impl LocoNetMessage for GpOff {
 
 impl GpOff {
     pub fn new() -> Self { GpOff() }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class GpOff {
-    self_type GpOff;
-    constructor GpOff::new() -> GpOff;
-    fn GpOff::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for GpOff {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "GpOff")
+    }
+}
+
+foreign_class!(
+    /// Loco nets off method (Power off request)
+    class GpOff {
+        self_type GpOff;
+        /// Creates a new loco net off method
+        constructor GpOff::new() -> GpOff;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn GpOff::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "GpOff"
+        fn GpOff::to_string(&self) -> String; alias toString;
+        /// Checks whether this GpOff is equal to another GpOff
+        /// @param other The GpOff to compare to
+        /// @return If this GpOff is equal to the other GpOff
+        fn GpOff::eq(&self, other: &GpOff) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((GpOff) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Busy();
 
 impl LocoNetMessage for Busy {
@@ -4253,15 +4823,58 @@ impl LocoNetMessage for Busy {
 
 impl Busy {
     pub fn new() -> Self { Busy() }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class Busy {
-    self_type Busy;
-    constructor Busy::new() -> Busy;
-    fn Busy::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for Busy {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Busy")
+    }
+}
+
+foreign_class!(
+    /// Loco nets busy method (Masters busy code)
+    class Busy {
+        self_type Busy;
+        /// Creates a new busy message
+        constructor Busy::new() -> Busy;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn Busy::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "Busy"
+        fn Busy::to_string(&self) -> String; alias toString;
+        /// Checks whether this Busy is equal to another Busy
+        /// @param other The Busy to compare to
+        /// @return If this Busy is equal to the other Busy
+        fn Busy::eq(&self, other: &Busy) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((Busy) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.toString());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LocoAdr(AddressArg);
 
 impl LocoNetMessage for LocoAdr {
@@ -4273,16 +4886,60 @@ impl LocoNetMessage for LocoAdr {
 impl LocoAdr {
     pub fn new(address: AddressArg) -> Self { LocoAdr(address) }
     pub fn get_address(&self) -> AddressArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class LocoAdr {
-    self_type LocoAdr;
-    constructor LocoAdr::new(address: AddressArg) -> LocoAdr;
-    fn LocoAdr::get_address(&self) -> AddressArg; alias getAddress;
-    fn LocoAdr::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for LocoAdr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LocoAdr({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Requests a slot for the given address. Answer: LongAck if failed, SL_RD_DATA if success
+    class LocoAdr {
+        self_type LocoAdr;
+        /// @param address The address to request a slot for.
+        constructor LocoAdr::new(address: AddressArg) -> LocoAdr;
+        /// @return The loco address to request a slot for
+        fn LocoAdr::get_address(&self) -> AddressArg; alias getAddress;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn LocoAdr::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "LocoAdr(address)"
+        fn LocoAdr::to_string(&self) -> String; alias toString;
+        /// Checks whether this LocoAdr is equal to another LocoAdr
+        /// @param other The LocoAdr to compare to
+        /// @return If this LocoAdr is equal to the other LocoAdr
+        fn LocoAdr::eq(&self, other: &LocoAdr) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((LocoAdr) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getAddress());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SwAck(SwitchArg);
 
 impl LocoNetMessage for SwAck {
@@ -4294,16 +4951,60 @@ impl LocoNetMessage for SwAck {
 impl SwAck {
     pub fn new(sw: SwitchArg) -> Self { SwAck(sw) }
     pub fn get_switch(&self) -> SwitchArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SwAck {
-    self_type SwAck;
-    constructor SwAck::new(sw: SwitchArg) -> SwAck;
-    fn SwAck::get_switch(&self) -> SwitchArg; alias getSwitch;
-    fn SwAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SwAck {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SwAck({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Request switch acknowledge function
+    class SwAck {
+        self_type SwAck;
+        /// @param sw The switch to request acknowledgement for
+        constructor SwAck::new(sw: SwitchArg) -> SwAck;
+        /// @return The switch to request acknowledgement for
+        fn SwAck::get_switch(&self) -> SwitchArg; alias getSwitch;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SwAck::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwAck(switch)"
+        fn SwAck::to_string(&self) -> String; alias toString;
+        /// Checks whether this SwAck is equal to another SwAck
+        /// @param other The SwAck to compare to
+        /// @return If this SwAck is equal to the other SwAck
+        fn SwAck::eq(&self, other: &SwAck) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SwAck) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSwitch());
+    }
+"#;
 });
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SwState(SwitchArg);
 
 impl LocoNetMessage for SwState {
@@ -4315,13 +5016,57 @@ impl LocoNetMessage for SwState {
 impl SwState {
     pub fn new(sw: SwitchArg) -> Self { SwState(sw) }
     pub fn get_switch(&self) -> SwitchArg { self.0 }
+
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
 }
 
-foreign_class!(class SwState {
-    self_type SwState;
-    constructor SwState::new(sw: SwitchArg) -> SwState;
-    fn SwState::get_switch(&self) -> SwitchArg; alias getSwitch;
-    fn SwState::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+impl Display for SwState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SwState({})", self.0)
+    }
+}
+
+foreign_class!(
+    /// Request state of switch
+    class SwState {
+        self_type SwState;
+        /// @param sw The switch to request state for
+        constructor SwState::new(sw: SwitchArg) -> SwState;
+        /// @return The switch to request state for
+        fn SwState::get_switch(&self) -> SwitchArg; alias getSwitch;
+        /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
+        /// @param locoNetConnector The loco net connection to use for sending
+        fn SwState::send(&self, locoNetConnector: &mut LocoNetConnector) -> bool;
+        /// @return A string in the format "SwState(switch)"
+        fn SwState::to_string(&self) -> String; alias toString;
+        /// Checks whether this SwState is equal to another SwState
+        /// @param other The SwState to compare to
+        /// @return If this SwState is equal to the other SwState
+        fn SwState::eq(&self, other: &SwState) -> bool; alias equals;
+        foreign_code r#"
+    /**
+     * Checks whether this object is equal to another object.
+     * @param o The object to compare to
+     * @return If this object is equal to the given object
+     */
+    @Override
+    public boolean equals(Object o) {
+        if(this == o) return true;
+        if(o == null || getClass() != o.getClass()) return false;
+        return this.equals((SwState) o);
+    }
+
+    /**
+     * Generates a hash code for this class.
+     * @return The generated hash code
+     */
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(this.getSwitch());
+    }
+"#;
 });
 
 #[derive(Debug, Copy, Clone)]
