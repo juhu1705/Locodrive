@@ -47,6 +47,7 @@ Please note: Always add me to your pull request to test your changes with an act
 | Dependency                 | Version | License     |
 |----------------------------|---------|-------------|
 | JetBrains Java Annotations | 20.1.0  | Apache v2.0 |
+|||
 | noisruker event-manager    | 1.1.0   | GPL v3.0    |
 | noisruker logger           | 1.0.3   | GPL v3.0    |
 

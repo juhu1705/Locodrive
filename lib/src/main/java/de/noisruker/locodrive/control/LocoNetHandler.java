@@ -1,3 +1,22 @@
+/*
+ * LocoNetHandler
+ * LocoNetHandler.java
+ * Copyright © 2022 Fabius Mettner
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package de.noisruker.locodrive.control;
 
 import de.noisruker.event.EventManager;
@@ -11,63 +30,111 @@ import static de.noisruker.logger.Logger.LOGGER;
 import static de.noisruker.locodrive.control.LocoNetEvent.*;
 import static de.noisruker.locodrive.control.LocoRespondEvent.*;
 
+/**
+ * A controller class for one loco net connection.
+ *
+ * All received messages will be fired over the {@link de.noisruker.event.EventManager event manager}.
+ *
+ * You can easily send messages to the loco net calling {@link LocoNetHandler#send(ILocoNetMessage)} with the message you want to send.
+ *
+ * When this class is called first it automatically loads the locodrive native library, for manually loading call {@link Utils#loadNativeLibrary()}.
+ */
 public class LocoNetHandler {
 
-    static {
-        try {
-            final String OS = System.getProperty("os.name").toLowerCase();
-
-            if(OS.contains("win"))
-                NativeUtils.loadLibraryFromJar("/locodrive.dll");
-            else if(OS.contains("nix") || OS.contains("nux") || OS.contains("aix"))
-                NativeUtils.loadLibraryFromJar("/liblocodrive.so");
-            else if(OS.contains("mac"))
-                NativeUtils.loadLibraryFromJar("/liblocodrive.dylib");
-            else
-                throw new RuntimeException("Not allowed System OS. For support please ask the creator!");
-        } catch (java.io.IOException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * The LocoNetHandler instance to use
+     */
     private static final LocoNetHandler INSTANCE = new LocoNetHandler();
 
+    /**
+     * @return The LocoNetHandler instance
+     */
     @NotNull
     public static LocoNetHandler getInstance() {
         return LocoNetHandler.INSTANCE;
     }
 
+    /**
+     * The rust connection manager for the loco net connection
+     */
     private LocoNetConnector connector = null;
 
+    /**
+     * Creates a new LocoNetHandler and loads the needed native libraries
+     */
     private LocoNetHandler() {
-
+        try {
+            Utils.loadNativeLibrary();
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * Connects this loco net handler to a serial port
+     *
+     * The baudRate will be set to 115_200, the sendingTimeout will be 500 milliseconds, the flowControl will be software based and the updateCycles will be all 5 seconds.
+     * @param serialPort The name of the serial port to connect to. (All port names can be listed by calling {@link PortInfos#getAllPorts()})
+     * @throws Exception If the connecting to the port failed
+     */
     public void connectTo(@NotNull String serialPort) throws Exception {
-        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+        if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
         this.connector = new LocoNetConnector(serialPort, this::read, this::handleLack, this::handleError);
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
-    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout) throws Exception {
-        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+    /**
+     * Connects this loco net handler to a serial port with a specific baud_rate and sending timeout.
+     *
+     * The flowControl will be software based and the updateCycles will be all 5 seconds.
+     * @param serialPort The name of the serial port to connect to. (All port names can be listed by calling {@link PortInfos#getAllPorts()})
+     * @param baudRate The baud rate to use. Common baud rates may be: 115_200, 57_600, 38_400 or 19_200
+     * @param sendingTimeout The time send messages wait for the message receive response before failing and returning false
+     * @throws Exception If the connecting to the port failed
+     */
+    public void connectTo(@NotNull String serialPort, long baudRate, long sendingTimeout) throws Exception {
+        if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
-        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, this::read, this::handleLack, this::handleError);
+        this.connector = new LocoNetConnector(serialPort, baudRate, sendingTimeout, this::read, this::handleLack, this::handleError);
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
-    public void connectTo(@NotNull String serialPort, long baud_rate, long sending_timeout, long update_cycles, FlowControl flow_control) throws Exception {
-        if(!Arrays.asList(this.getPortInfos()).contains(serialPort))
+    /**
+     * Connects this loco net handler to a serial port with a specific baud_rate, sending timeout, updateCycle rate and flowControl.
+     * @param serialPort The name of the serial port to connect to. (All port names can be listed by calling {@link PortInfos#getAllPorts()})
+     * @param baudRate The baud rate to use. Common baud rates may be: 115_200, 57_600, 38_400 or 19_200
+     * @param sendingTimeout The time send messages wait for the message receive response before failing and returning false
+     * @param updateCycles The time the reader threads sleeps while waiting for incoming loco net messages, before awaking and do the turnoff check
+     * @param flowControl The flow control used for the loco net connection
+     * @throws Exception If the connecting to the port failed
+     */
+    public void connectTo(@NotNull String serialPort, long baudRate, long sendingTimeout, long updateCycles, FlowControl flowControl) throws Exception {
+        if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
-        this.connector = new LocoNetConnector(serialPort, baud_rate, sending_timeout, update_cycles, flow_control, this::read, this::handleLack, this::handleError);
+        this.connector = new LocoNetConnector(serialPort, baudRate, sendingTimeout, updateCycles, flowControl, this::read, this::handleLack, this::handleError);
         LOGGER.info("Successfully connected to port " + this.connector.getPortName());
     }
 
-    public String[] getPortInfos() {
-        return PortInfos.getAllPorts();
+    /**
+     * Starts the loco net message reader for this port.
+     * Messages received to this port will be triggered over the {@link EventManager}.
+     * {@link LocoNetEvent Here} can You find all available LocoNetEvents that may be triggered.
+     * {@link LocoNetErrorEvent Here} can You find all available LocoNetErrorEvents that may be triggered.
+     * {@link LocoRespondEvent Here} can You find all available LocoNet responses for the specified messages.
+     * @throws IllegalStateException If no port is configured
+     */
+    public void startReader() throws IllegalStateException {
+        if(this.connector == null)
+            throw new IllegalStateException("No port is configured");
+        if(!this.connector.startReader())
+            throw new AlreadyConnectedException();
     }
 
+    /**
+     * Stops the loco net message reader and wait for the reading thread to end before returning.
+     * @throws IllegalStateException If no reader is configured
+     */
     public void stop() throws IllegalStateException {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
@@ -76,13 +143,11 @@ public class LocoNetHandler {
         this.connector.stopReader();
     }
 
-    public void startReader() throws IllegalStateException {
-        if(this.connector == null)
-            throw new IllegalStateException("No port is configured");
-        if(!this.connector.startReader())
-            throw new AlreadyConnectedException();
-    }
-
+    /**
+     * Handles a message response
+     * @param ack The message response to handle
+     * @param message The message the response was received for
+     */
     private void handleLack(LongAck ack, Message message) {
         EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
             case 4 -> new LocoAdrErrorResponseEvent(ack, message.getLocoAdr());
@@ -95,6 +160,10 @@ public class LocoNetHandler {
         }), this::sendResponse);
     }
 
+    /**
+     * Handles an incoming loco net message
+     * @param message The message to handle
+     */
     private void read(Message message) {
         EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
             case 0 -> new IdleEvent(message.getIdle());
@@ -128,12 +197,21 @@ public class LocoNetHandler {
         }), this::sendResponse);
     }
 
+    /**
+     * Handles a occurring loco net error
+     * @param error The loco net error to handle
+     */
     public void handleError(MessageParseError error) {
         LOGGER.log(Level.SEVERE, "A error occurred while reading from serial port (port: " + this.connector.getPortName() + "; Error: " + error.toString() + ")");
 
         EventManager.getInstance().triggerEvent(new LocoNetErrorEvent(error));
     }
 
+    /**
+     * Sends a responding message back to the loco net
+     * @param message The message to send back to the connected loco net
+     * @throws IllegalStateException If the port is not configured
+     */
     private void sendResponse(ILocoNetMessage message) throws IllegalStateException {
         if(message == null)
             return;
@@ -149,6 +227,8 @@ public class LocoNetHandler {
 
     /**
      * Sends a given {@link ILocoNetMessage loco net message} to the connected loco net
+     *
+     * Note: The loco net reader must be running to validate the receiving of the message, else all message sending will fail.
      * @param message The message to send
      * @return If the sending was successfully
      * @throws IllegalStateException If no port for this loco net is configured (No connection configured)

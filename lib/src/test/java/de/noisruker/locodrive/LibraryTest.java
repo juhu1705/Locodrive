@@ -46,7 +46,7 @@ public class LibraryTest {
             }
         });
 
-        for(String port: LocoNetHandler.getInstance().getPortInfos()) {
+        for(String port: PortInfos.getAllPorts()) {
             Logger.LOGGER.info("Connectable port: " + port);
         }
 
@@ -54,10 +54,10 @@ public class LibraryTest {
     }
 
     @Test public void testLocoNetConnection() throws Exception {
-        if(LocoNetHandler.getInstance().getPortInfos().length == 0) {
+        if(PortInfos.getAllPorts().length == 0) {
             Logger.LOGGER.info("No port to connect to, scip loco net connection tests!");
         } else {
-            LocoNetHandler.getInstance().connectTo(LocoNetHandler.getInstance().getPortInfos()[0]);
+            LocoNetHandler.getInstance().connectTo(PortInfos.getAllPorts()[0]);
 
             LocoNetHandler.getInstance().startReader();
 

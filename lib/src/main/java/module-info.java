@@ -1,3 +1,6 @@
+/**
+ * A module for connecting to a loco net via a serial port
+ */
 module de.noisruker.locodrive {
     requires java.base;
     requires de.noisruker.event;
