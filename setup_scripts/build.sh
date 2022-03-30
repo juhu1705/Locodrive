@@ -96,3 +96,5 @@ cd "$SCRIPT_HOME/.." || exit 1
 #CXX=o64-clang++ \
 #LIBZ_SYS_STATIC=1 \
 #~/.cargo/bin/cargo build --release --target x86_64-apple-darwin
+
+echo "Some text" >> ./setup_scripts/run.txt
