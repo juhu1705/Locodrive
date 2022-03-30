@@ -2,7 +2,7 @@
 name = "locodrive"
 version = "0.0.1"
 authors = ["Fabius Mettner <fabius1705@live.de>"]
-edition = "2022"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
