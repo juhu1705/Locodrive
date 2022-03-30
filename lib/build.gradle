@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'de.noisruker'
-version '0.0.0'
+version '0.0.1'
 
 java {
     withJavadocJar()
@@ -25,7 +25,7 @@ publishing {
             pom {
                 name = 'Locodrive'
                 description = 'A basic java library for managing the connection to a loco net'
-                url = 'https://github.com/juhu1705/Locodrive'
+                url = 'https://github.com/juhu1705/locodrive'
                 licenses {
                     license {
                         name = 'GNU General Public License, Version 3.0'
@@ -40,9 +40,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://github.com/juhu1705/Locodrive.git'
-                    developerConnection = 'scm:git:ssh://github.com/juhu1705/Locodrive.git'
-                    url = 'http://github.com/juhu1705/Locodrive'
+                    connection = 'scm:git:git://github.com/juhu1705/locodrive.git'
+                    developerConnection = 'scm:git:ssh://github.com/juhu1705/locodrive.git'
+                    url = 'http://github.com/juhu1705/locodrive'
                 }
             }
         }
