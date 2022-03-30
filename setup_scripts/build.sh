@@ -89,6 +89,8 @@ cd "$SCRIPT_HOME/.." || exit 1
 
 ~/.cargo/bin/cargo build --release --target x86_64-pc-windows-gnu
 
+~/.cargo/bin/cargo build --release
+
 #./setup_scripts/osxcross_setup.sh
 
 #PATH="$(pwd)/osxcross/target/bin:$PATH" \

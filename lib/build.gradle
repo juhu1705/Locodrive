@@ -114,7 +114,7 @@ tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", de
     if(!new File(new File(project.ext.cargo_target_directory).getParentFile().getAbsolutePath() + "/setup_scripts/run.txt").exists()) {
         commandLine 'cargo', 'build', '--release'
     } else {
-        commandLine '~/.cargo/bin/cargo', 'build', '--release'
+        commandLine 'echo', 'already build'
     }
     doLast {
         logger.info("Optimize flapigen code")
