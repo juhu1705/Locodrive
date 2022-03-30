@@ -23,6 +23,9 @@ import de.noisruker.locodrive.args.NativeUtils;
 
 import java.io.IOException;
 
+/**
+ * Utility methods for the locodrive
+ */
 public class Utils {
 
     /**
