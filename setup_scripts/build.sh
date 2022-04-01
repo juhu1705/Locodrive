@@ -1,12 +1,14 @@
 #!/usr/bin/env sh
 # Install clang and other dependencies
 
+OSX_PATH="$(pwd)/osxcross/target/bin/"
+
 cd setup_scripts || exit 1
 sudo ./prepare_build.sh
 
 apt-get install --yes libc6-dev-i386 gcc-mingw-w64
 
-apt install --yes gcc g++ zlib1g-dev libmpc-dev libmpc-dev libmpfr-dev libgmp-dev cmake libxml2-dev libssl-dev
+apt install --yes gcc g++ zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev cmake libxml2-dev libssl-dev
 
 # Setup rust
 curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
@@ -19,13 +21,14 @@ curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
 ~/.cargo/bin/rustup target add x86_64-apple-darwin
 
 
-echo '[target.x86_64-pc-windows-gnu]
-linker = "/usr/bin/x86_64-w64-mingw32-gcc"
-ar = "/usr/bin/x86_64-w64-mingw32-ar"
+# shellcheck disable=SC2016
+echo "[target.x86_64-pc-windows-gnu]
+linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
+ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
 
 [target.x86_64-apple-darwin]
-linker = "x86_64-apple-darwin14-clang"
-ar = "x86_64-apple-darwin14-ar"' > ~/.cargo/config
+linker = \"$(OSX_PATH)x86_64-apple-darwin14-clang\"
+ar = \"$(OSX_PATH)x86_64-apple-darwin14-ar\"" > ~/.cargo/config
 
 echo "CARGO READY"
 
@@ -93,10 +96,12 @@ cd "$SCRIPT_HOME/.." || exit 1
 
 sudo ./setup_scripts/osxcross_setup.sh
 
+ls "$(pwd)/osxcross/target/bin"
+
 PATH="$(pwd)/osxcross/target/bin:$PATH" \
 CC=o64-clang \
 CXX=o64-clang++ \
 LIBZ_SYS_STATIC=1 \
 ~/.cargo/bin/cargo build --release --target x86_64-apple-darwin
 
-echo "Some text" >> ./setup_scripts/run.txt
+echo "Finished" >> ./setup_scripts/run.txt
