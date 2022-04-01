@@ -1,7 +1,13 @@
 #!/usr/bin/env sh
 # Install clang and other dependencies
 
-OSX_PATH="$(pwd)/osxcross/target/bin/"
+echo "[target.x86_64-pc-windows-gnu]
+linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
+ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
+
+[target.x86_64-apple-darwin]
+linker = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-clang\"
+ar = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-ar\"" > ~/.cargo/config
 
 cd setup_scripts || exit 1
 sudo ./prepare_build.sh
@@ -19,16 +25,6 @@ curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
 
 ~/.cargo/bin/rustup target add x86_64-pc-windows-gnu
 ~/.cargo/bin/rustup target add x86_64-apple-darwin
-
-
-# shellcheck disable=SC2016
-echo "[target.x86_64-pc-windows-gnu]
-linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
-ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
-
-[target.x86_64-apple-darwin]
-linker = \"$(OSX_PATH)x86_64-apple-darwin14-clang\"
-ar = \"$(OSX_PATH)x86_64-apple-darwin14-ar\"" > ~/.cargo/config
 
 echo "CARGO READY"
 
