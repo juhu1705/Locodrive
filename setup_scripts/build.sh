@@ -24,7 +24,7 @@ linker = "/usr/bin/x86_64-w64-mingw32-gcc"
 ar = "/usr/bin/x86_64-w64-mingw32-ar"
 
 [target.x86_64-apple-darwin]
-linker = "x86_64-apple-darwin14-gcc"
+linker = "x86_64-apple-darwin14-clang"
 ar = "x86_64-apple-darwin14-ar"' > ~/.cargo/config
 
 echo "CARGO READY"

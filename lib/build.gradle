@@ -136,7 +136,7 @@ def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-bui
     includeEmptyDirs false
     eachFile {
         def path = it.getPath()
-        path = path.replaceAll(/.*release((\/|\\)locodrive.*)$/) { it[1] }
+        path = path.replaceAll(/.*release((\/|\\).*locodrive.*)$/) { it[1] }
         it.setPath(path)
     }
     into "rust-lib/"
