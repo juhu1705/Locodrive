@@ -2,7 +2,7 @@
 # Install clang and other dependencies
 
 cd setup_scripts || exit 1
-./prepare_build.sh
+sudo ./prepare_build.sh
 
 apt-get install --yes libc6-dev-i386 gcc-mingw-w64
 
@@ -12,11 +12,11 @@ apt install --yes gcc g++ zlib1g-dev libmpc-dev libmpc-dev libmpfr-dev libgmp-de
 curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
 # snap install rustup --classic
 ~/.cargo/bin/rustup toolchain install stable-x86_64-pc-windows-gnu
-#~/.cargo/bin/rustup toolchain install stable-x86_64-apple-darwin
+~/.cargo/bin/rustup toolchain install stable-x86_64-apple-darwin
 ~/.cargo/bin/rustup toolchain install stable
 
 ~/.cargo/bin/rustup target add x86_64-pc-windows-gnu
-#~/.cargo/bin/rustup target add x86_64-apple-darwin
+~/.cargo/bin/rustup target add x86_64-apple-darwin
 
 
 echo '[target.x86_64-pc-windows-gnu]
@@ -91,12 +91,12 @@ cd "$SCRIPT_HOME/.." || exit 1
 
 ~/.cargo/bin/cargo build --release
 
-#./setup_scripts/osxcross_setup.sh
+sudo ./setup_scripts/osxcross_setup.sh
 
-#PATH="$(pwd)/osxcross/target/bin:$PATH" \
-#CC=o64-clang \
-#CXX=o64-clang++ \
-#LIBZ_SYS_STATIC=1 \
-#~/.cargo/bin/cargo build --release --target x86_64-apple-darwin
+PATH="$(pwd)/osxcross/target/bin:$PATH" \
+CC=o64-clang \
+CXX=o64-clang++ \
+LIBZ_SYS_STATIC=1 \
+~/.cargo/bin/cargo build --release --target x86_64-apple-darwin
 
 echo "Some text" >> ./setup_scripts/run.txt

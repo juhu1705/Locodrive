@@ -131,8 +131,14 @@ tasks.create(name: 'cargo-build', type: Exec, description: "Run Cargo build", de
 }
 
 def deploy = tasks.create(name: "rust-deploy", type: Sync, dependsOn: "cargo-build") {
-    from "${project.ext.cargo_target_directory}/release"
-    include "*.dylib","*.so","*.dll"
+    from "${project.ext.cargo_target_directory}"
+    include "release/*.dylib","release/*.so","release/*.dll", "*/release/*.dylib","*/release/*.so","*/release/*.dll"
+    includeEmptyDirs false
+    eachFile {
+        def path = it.getPath()
+        path = path.replaceAll(/.*release((\/|\\)locodrive.*)$/) { it[1] }
+        it.setPath(path)
+    }
     into "rust-lib/"
 }
 

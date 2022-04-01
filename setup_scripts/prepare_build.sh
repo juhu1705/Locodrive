@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 apt-get update --yes
 apt-get upgrade --yes
 
