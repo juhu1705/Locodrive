@@ -7,6 +7,6 @@ mv MacOSX10.10.sdk.tar.xz tarballs/
 sed -i -e 's|-march=native||g' build_clang.sh wrapper/build_wrapper.sh
 UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
 ./build_gcc.sh
-mkdir -p /usr/local/osx-ndk-x86
-mv target/* /usr/local/osx-ndk-x86
+#mkdir -p /usr/local/osx-ndk-x86
+#mv target/* /usr/local/osx-ndk-x86
 cd ..

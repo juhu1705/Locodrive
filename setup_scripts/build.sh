@@ -93,18 +93,8 @@ cd "$SCRIPT_HOME/.." || exit 1
 sudo ./setup_scripts/osxcross_setup.sh
 
 echo "$(pwd)"
-echo "0"
-ls "$(pwd)"
-echo "1"
-ls "$(pwd)/osxcross"
-echo "1.1"
-ls "$(pwd)osxcross"
-echo "2"
-ls "$(pwd)/osxcross/target"
-echo "2.1"
-ls "$(pwd)osxcross/target"
-echo "3"
 
+ls -R "$(pwd)"
 
 PATH="$(pwd)/osxcross/target/bin:$PATH" \
 CC=o64-clang \
