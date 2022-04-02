@@ -6,7 +6,7 @@ linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
 ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
 
 [target.x86_64-apple-darwin]
-linker = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-clang\"
+linker = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-gcc\"
 ar = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-ar\"" > ~/.cargo/config
 
 cd setup_scripts || exit 1
@@ -92,7 +92,8 @@ cd "$SCRIPT_HOME/.." || exit 1
 
 sudo ./setup_scripts/osxcross_setup.sh
 
-ls "$(pwd)/osxcross/target/bin"
+ls "$(pwd)"
+ls "$(pwd)/osxcross/target"
 
 PATH="$(pwd)/osxcross/target/bin:$PATH" \
 CC=o64-clang \

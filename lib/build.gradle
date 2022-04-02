@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'de.noisruker'
-version '0.0.1'
+version '0.0.0'
 
 java {
     withJavadocJar()

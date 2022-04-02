@@ -45,9 +45,6 @@ jobs:
           distribution: 'zulu'
           java-version: 17
 
-      - name: Check worktree
-        run: ls -R .
-
       - name: Get clang
         run: |
           chmod 764 ./setup_scripts/prepare_build.sh
