@@ -1,12 +1,14 @@
 #!/usr/bin/env sh
 # Install clang and other dependencies
 
+mkdir -p ~/.cargo
+
 echo "[target.x86_64-pc-windows-gnu]
 linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
 ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
 
 [target.x86_64-apple-darwin]
-linker = \"x86_64-apple-darwin14-clang\"
+linker = \"x86_64-apple-darwin14-gcc\"
 ar = \"x86_64-apple-darwin14-ar\"
 rustflags = [
 \"-C\", \"link-arg=-undefined\",
@@ -96,9 +98,9 @@ cd "$SCRIPT_HOME/.." || exit 1
 
 sudo ./setup_scripts/osxcross_setup.sh
 
-echo "$(pwd)"
+#echo "$(pwd)"
 
-ls -R "$(pwd)"
+#ls -R "$(pwd)"
 
 PATH="$(pwd)/osxcross/target/bin:$PATH" \
 CC=o64-clang \
