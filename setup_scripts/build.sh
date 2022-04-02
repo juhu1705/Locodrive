@@ -6,8 +6,12 @@ linker = \"/usr/bin/x86_64-w64-mingw32-gcc\"
 ar = \"/usr/bin/x86_64-w64-mingw32-ar\"
 
 [target.x86_64-apple-darwin]
-linker = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-gcc\"
-ar = \"$(pwd)/osxcross/target/bin/x86_64-apple-darwin14-ar\"" > ~/.cargo/config
+linker = \"x86_64-apple-darwin14-clang\"
+ar = \"x86_64-apple-darwin14-ar\"
+rustflags = [
+\"-C\", \"link-arg=-undefined\",
+\"-C\", \"link-arg=dynamic_lookup\",
+]" > ~/.cargo/config
 
 cd setup_scripts || exit 1
 sudo ./prepare_build.sh
