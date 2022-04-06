@@ -54,16 +54,22 @@ public class LibraryTest {
     }
 
     @Test public void testLocoNetConnection() throws Exception {
+        LocoNetHandler.getInstance();
         if(PortInfos.getAllPorts().length == 0) {
             Logger.LOGGER.info("No port to connect to, scip loco net connection tests!");
         } else {
+            EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info(event.getLocoNetMessage().toString()));
+
             LocoNetHandler.getInstance().connectTo(PortInfos.getAllPorts()[0]);
 
             LocoNetHandler.getInstance().startReader();
 
+            assertTrue(LocoNetHandler.getInstance().send(new LocoAdr(new AddressArg(3))));
+
             assertTrue(LocoNetHandler.getInstance().send(new GpOff()));
 
             assertTrue(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 100)));
+            assertTrue(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0)));
 
             LocoNetHandler.getInstance().stop();
 

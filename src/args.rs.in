@@ -5940,7 +5940,7 @@ impl LocoSpd {
 
 impl Display for LocoSpd {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SwState({}, {})", self.0, self.1)
+        write!(f, "LocoSpd({}, {})", self.0, self.1)
     }
 }
 
@@ -7090,7 +7090,6 @@ impl LocoNetConnector {
         let mut last_send = lock.lock().unwrap();
 
         if !(*last_send).is_empty() && (*last_send) == buf {
-            println!("Reset!");
             *last_send = vec![0u8; 0];
             waiter.notify_all();
             cvar.notify_one();
@@ -7188,7 +7187,7 @@ impl LocoNetConnector {
     }
 
     fn parse_var(opc: u8, args: &[u8]) -> Result<Message, MessageParseError> {
-        if args.len() as u8 + 2 == args[0] {
+        if (args.len() + 2) as u8 != args[0] {
             return Err(MessageParseError::UnexpectedEnd);
         }
         match opc {
