@@ -75,11 +75,16 @@ repositories {
             })
 }
 
+ext {
+    junitVersion = '5.8.2'
+}
+
 dependencies {
     implementation 'org.jetbrains:annotations:20.1.0'
 
     // Use JUnit test framework.
-    testImplementation 'junit:junit:4.13.2'
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
 
     implementation 'de.noisruker:event-manager:1.1.0'
     implementation 'de.noisruker:logger:1.0.3'

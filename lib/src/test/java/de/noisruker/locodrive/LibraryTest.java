@@ -8,21 +8,23 @@ import de.noisruker.locodrive.args.*;
 import de.noisruker.locodrive.control.LocoNetEvent;
 import de.noisruker.locodrive.control.LocoNetHandler;
 import de.noisruker.logger.Logger;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.logging.Level;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+
 
 public class LibraryTest {
 
-    @Test public void testRustConnection() throws Exception {
+    @Test
+    public void testRustConnection() throws Exception {
         Logger.LOGGER.info("Try rust code connection");
 
         LocoNetHandler.getInstance();
 
         AddressArg address = new AddressArg(16);
-        assertEquals("AddressArg", 16, address.address());
+        assertEquals(16, address.address());
 
         EventManager.getInstance().registerEventListener(LocoNetEvent.LocoSpdEvent.class, event -> {
                 Logger.LOGGER.info("Set speed of slot " + String.valueOf(event.getLocoNetMessage().getSlot().slot()) + " to " + String.valueOf(event.getLocoNetMessage().getSpd().spd()));
@@ -54,8 +56,7 @@ public class LibraryTest {
     }
 
     @Test public void testLocoNetConnection() throws Exception {
-        LocoNetHandler.getInstance();
-        if(PortInfos.getAllPorts().length == 0) {
+        if(LocoNetHandler.getInstance().getPorts().length == 0) {
             Logger.LOGGER.info("No port to connect to, scip loco net connection tests!");
         } else {
             EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info(event.getLocoNetMessage().toString()));

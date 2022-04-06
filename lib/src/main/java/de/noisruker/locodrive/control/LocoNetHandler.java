@@ -71,6 +71,13 @@ public class LocoNetHandler {
     }
 
     /**
+     * @return A list of the serial ports available on the execution system. An empty list if no port is available.
+     */
+    public String[] getPorts() {
+        return PortInfos.getAllPorts();
+    }
+
+    /**
      * Connects this loco net handler to a serial port
      *
      * The baudRate will be set to 115_200, the sendingTimeout will be 500 milliseconds, the flowControl will be software based and the updateCycles will be all 5 seconds.

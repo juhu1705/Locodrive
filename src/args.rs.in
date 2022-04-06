@@ -5925,10 +5925,13 @@ impl LocoNetMessage for LocoSpd {
 
 impl LocoSpd {
     pub fn new_easy(slot: SlotArg, spd: u16) -> Self {
-        LocoSpd(slot, SpeedArg::parse(spd as u8))
+        LocoSpd(slot, SpeedArg::new(spd as u8))
     }
     pub fn new(slot: SlotArg, spd: SpeedArg) -> Self {
         LocoSpd(slot, spd)
+    }
+    pub fn emergency_stop(slot: SlotArg) -> Self {
+        LocoSpd(slot, SpeedArg::EmergencyStop)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_spd(&self) -> SpeedArg { self.1 }
@@ -5954,8 +5957,11 @@ foreign_class!(
         constructor LocoSpd::new(slot: SlotArg, spd: SpeedArg) -> LocoSpd;
         /// Sets the slot speed
         /// @param slot The slot to set the speed to
-        /// @param spd The speed to set. Only values between 0 and 128 are allowed here. Speed of 1 is emergency stop and other speeds are their value minus 1
+        /// @param spd The speed to set. Only values between 0 and 128 are allowed here.
         constructor LocoSpd::new_easy(slot: SlotArg, spd: u16) -> LocoSpd;
+        /// Sets the slot speed to an emergency stop
+        /// @param slot The slot to set the speed to
+        constructor LocoSpd::emergency_stop(slot: SlotArg) -> LocoSpd;
         /// @return The slot to set the speed to
         fn LocoSpd::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The speed to set
