@@ -42,32 +42,15 @@ import static de.noisruker.locodrive.control.LocoRespondEvent.*;
 public class LocoNetHandler {
 
     /**
-     * The LocoNetHandler instance to use
-     */
-    private static final LocoNetHandler INSTANCE = new LocoNetHandler();
-
-    /**
-     * @return The LocoNetHandler instance
-     */
-    @NotNull
-    public static LocoNetHandler getInstance() {
-        return LocoNetHandler.INSTANCE;
-    }
-
-    /**
      * The rust connection manager for the loco net connection
      */
     private LocoNetConnector connector = null;
 
     /**
-     * Creates a new LocoNetHandler and loads the needed native libraries
+     * Creates a new LocoNetHandler
      */
-    private LocoNetHandler() {
-        try {
-            Utils.loadNativeLibrary();
-        } catch (java.io.IOException e) {
-            e.printStackTrace();
-        }
+    public LocoNetHandler() {
+
     }
 
     /**

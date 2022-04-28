@@ -7,6 +7,7 @@ import de.noisruker.event.EventManager;
 import de.noisruker.locodrive.args.*;
 import de.noisruker.locodrive.control.LocoNetEvent;
 import de.noisruker.locodrive.control.LocoNetHandler;
+import de.noisruker.locodrive.control.Utils;
 import de.noisruker.logger.Logger;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ public class LibraryTest {
     public void testRustConnection() throws Exception {
         Logger.LOGGER.info("Try rust code connection");
 
-        LocoNetHandler.getInstance();
+        Utils.loadNativeLibrary();
 
         AddressArg address = new AddressArg(16);
         assertEquals(16, address.address());
@@ -56,27 +57,30 @@ public class LibraryTest {
     }
 
     @Test public void testLocoNetConnection() throws Exception {
-        if(LocoNetHandler.getInstance().getPorts().length == 0) {
+        Utils.loadNativeLibrary();
+        LocoNetHandler handler = new LocoNetHandler();
+
+        if(handler.getPorts().length == 0) {
             Logger.LOGGER.info("No port to connect to, scip loco net connection tests!");
         } else {
             EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info(event.getLocoNetMessage().toString()));
 
-            LocoNetHandler.getInstance().connectTo(PortInfos.getAllPorts()[0]);
+            handler.connectTo(PortInfos.getAllPorts()[0]);
 
-            LocoNetHandler.getInstance().startReader();
+            handler.startReader();
 
-            assertTrue(LocoNetHandler.getInstance().send(new LocoAdr(new AddressArg(3))));
+            assertTrue(handler.send(new LocoAdr(new AddressArg(3))));
 
-            assertTrue(LocoNetHandler.getInstance().send(new GpOff()));
+            assertTrue(handler.send(new GpOff()));
 
-            assertTrue(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 100)));
-            assertTrue(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0)));
+            assertTrue(handler.send(new LocoSpd(new SlotArg((short) 7), 100)));
+            assertTrue(handler.send(new LocoSpd(new SlotArg((short) 7), 0)));
 
-            LocoNetHandler.getInstance().stop();
+            handler.stop();
 
-            assertFalse(LocoNetHandler.getInstance().send(new LocoSpd(new SlotArg((short) 7), 0)));
+            assertFalse(handler.send(new LocoSpd(new SlotArg((short) 7), 0)));
 
-            assertFalse(LocoNetHandler.getInstance().send(new GpOff()));
+            assertFalse(handler.send(new GpOff()));
 
             Logger.LOGGER.info("loco net connection was successfully");
         }
