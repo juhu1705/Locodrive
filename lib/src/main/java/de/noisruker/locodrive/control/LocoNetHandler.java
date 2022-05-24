@@ -19,27 +19,30 @@
 
 package de.noisruker.locodrive.control;
 
-import de.noisruker.event.EventManager;
 import de.noisruker.locodrive.args.*;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.nio.channels.AlreadyConnectedException;
 import java.util.Arrays;
 import java.util.logging.Level;
-import static de.noisruker.logger.Logger.LOGGER;
+import java.util.logging.Logger;
+
 import static de.noisruker.locodrive.control.LocoNetEvent.*;
 import static de.noisruker.locodrive.control.LocoRespondEvent.*;
 
 /**
  * A controller class for one loco net connection.
  *
- * All received messages will be fired over the {@link de.noisruker.event.EventManager event manager}.
- *
  * You can easily send messages to the loco net calling {@link LocoNetHandler#send(ILocoNetMessage)} with the message you want to send.
  *
  * When this class is called first it automatically loads the locodrive native library, for manually loading call {@link Utils#loadNativeLibrary()}.
  */
 public class LocoNetHandler {
+
+    private final ApplicationEventPublisher publisher;
+
+    private final Logger logger;
 
     /**
      * The rust connection manager for the loco net connection
@@ -49,8 +52,9 @@ public class LocoNetHandler {
     /**
      * Creates a new LocoNetHandler
      */
-    public LocoNetHandler() {
-
+    public LocoNetHandler(ApplicationEventPublisher eventPublisher, Logger logger) {
+        this.publisher = eventPublisher;
+        this.logger = logger;
     }
 
     /**
@@ -67,11 +71,12 @@ public class LocoNetHandler {
      * @param serialPort The name of the serial port to connect to. (All port names can be listed by calling {@link PortInfos#getAllPorts()})
      * @throws Exception If the connecting to the port failed
      */
+
     public void connectTo(@NotNull String serialPort) throws Exception {
         if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
         this.connector = new LocoNetConnector(serialPort, this::read, this::handleLack, this::handleError);
-        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+        this.logger.info("Successfully connected to port " + this.connector.getPortName());
     }
 
     /**
@@ -87,7 +92,7 @@ public class LocoNetHandler {
         if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
         this.connector = new LocoNetConnector(serialPort, baudRate, sendingTimeout, this::read, this::handleLack, this::handleError);
-        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+        this.logger.info("Successfully connected to port " + this.connector.getPortName());
     }
 
     /**
@@ -103,12 +108,11 @@ public class LocoNetHandler {
         if(!Arrays.asList(PortInfos.getAllPorts()).contains(serialPort))
             throw new IllegalArgumentException("The port " + serialPort + " is not available!");
         this.connector = new LocoNetConnector(serialPort, baudRate, sendingTimeout, updateCycles, flowControl, this::read, this::handleLack, this::handleError);
-        LOGGER.info("Successfully connected to port " + this.connector.getPortName());
+        this.logger.info("Successfully connected to port " + this.connector.getPortName());
     }
 
     /**
      * Starts the loco net message reader for this port.
-     * Messages received to this port will be triggered over the {@link EventManager}.
      * {@link LocoNetEvent Here} can You find all available LocoNetEvents that may be triggered.
      * {@link LocoNetErrorEvent Here} can You find all available LocoNetErrorEvents that may be triggered.
      * {@link LocoRespondEvent Here} can You find all available LocoNet responses for the specified messages.
@@ -129,7 +133,7 @@ public class LocoNetHandler {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
 
-        LOGGER.info("Try interrupting reader");
+        this.logger.info("Try interrupting reader");
         this.connector.stopReader();
     }
 
@@ -139,7 +143,7 @@ public class LocoNetHandler {
      * @param message The message the response was received for
      */
     private void handleLack(LongAck ack, Message message) {
-        EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
+        this.publisher.publishEvent(switch (message.getMessageType()) {
             case 4 -> new LocoAdrErrorResponseEvent(ack, message.getLocoAdr());
             case 5 -> new SwAckResponseEvent(ack, message.getSwAck());
             case 6 -> new SwStateResponseEvent(ack, message.getSwState());
@@ -147,7 +151,7 @@ public class LocoNetHandler {
             case 22 -> new WrSlResponseEvent(ack, message.getWrSlData());
             case 24 -> new ImmResponseEvent(ack, message.getImmPacket());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
-        }), this::sendResponse);
+        });
     }
 
     /**
@@ -155,7 +159,7 @@ public class LocoNetHandler {
      * @param message The message to handle
      */
     private void read(Message message) {
-        EventManager.getInstance().triggerEventAsync((switch (message.getMessageType()) {
+        this.publisher.publishEvent((switch (message.getMessageType()) {
             case 0 -> new IdleEvent(message.getIdle());
             case 1 -> new GpOnEvent(message.getGpOn());
             case 2 -> new GpOffEvent(message.getGpOff());
@@ -184,7 +188,7 @@ public class LocoNetHandler {
             case 25 -> new RepEvent(message.getRep());
             case 26 -> new PeerXferEvent(message.getPeerXfer());
             default -> throw new IllegalStateException("Unexpected value: " + message.getMessageType());
-        }), this::sendResponse);
+        }));
     }
 
     /**
@@ -192,9 +196,9 @@ public class LocoNetHandler {
      * @param error The loco net error to handle
      */
     public void handleError(MessageParseError error) {
-        LOGGER.log(Level.SEVERE, "A error occurred while reading from serial port (port: " + this.connector.getPortName() + "; Error: " + error.toString() + ")");
+        this.logger.log(Level.SEVERE, "A error occurred while reading from serial port (port: " + this.connector.getPortName() + "; Error: " + error.toString() + ")");
 
-        EventManager.getInstance().triggerEvent(new LocoNetErrorEvent(error));
+        this.publisher.publishEvent(new LocoNetErrorEvent(error));
     }
 
     /**
@@ -208,10 +212,10 @@ public class LocoNetHandler {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
 
-        LOGGER.info("Sending new message to LocoNet: " + message);
+        this.logger.info("Sending new message to LocoNet: " + message);
 
         if(!message.send(this.connector)) {
-            LOGGER.warning("The response message could not be send to the loco net");
+            this.logger.warning("The response message could not be send to the loco net");
         }
     }
 
@@ -227,7 +231,7 @@ public class LocoNetHandler {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
 
-        LOGGER.info("Sending new message to LocoNet: " + message);
+        this.logger.info("Sending new message to LocoNet: " + message);
         return message.send(this.connector);
     }
 

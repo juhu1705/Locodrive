@@ -19,7 +19,6 @@
 
 package de.noisruker.locodrive.control;
 
-import de.noisruker.event.events.Event;
 import de.noisruker.locodrive.args.MessageParseError;
 
 /**

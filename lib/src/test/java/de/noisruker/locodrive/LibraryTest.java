@@ -3,15 +3,17 @@
  */
 package de.noisruker.locodrive;
 
-import de.noisruker.event.EventManager;
 import de.noisruker.locodrive.args.*;
+import de.noisruker.locodrive.control.ILocoNetMessage;
 import de.noisruker.locodrive.control.LocoNetEvent;
 import de.noisruker.locodrive.control.LocoNetHandler;
 import de.noisruker.locodrive.control.Utils;
-import de.noisruker.logger.Logger;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ApplicationEventPublisher;
 
-import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,50 +22,52 @@ public class LibraryTest {
 
     @Test
     public void testRustConnection() throws Exception {
-        Logger.LOGGER.info("Try rust code connection");
+        System.out.println("Try rust code connection");
+
+        SpringApplication builder = new SpringApplicationBuilder(LibraryTest.class).build();
 
         Utils.loadNativeLibrary();
 
         AddressArg address = new AddressArg(16);
         assertEquals(16, address.address());
 
-        EventManager.getInstance().registerEventListener(LocoNetEvent.LocoSpdEvent.class, event -> {
-                Logger.LOGGER.info("Set speed of slot " + String.valueOf(event.getLocoNetMessage().getSlot().slot()) + " to " + String.valueOf(event.getLocoNetMessage().getSpd().spd()));
-                Logger.LOGGER.info("Request to deactivate loco net");
+        builder.getListeners().add((LocoNetEvent.LocoSpdEvent event) -> {
+                System.out.println("Set speed of slot " + String.valueOf(event.getLocoNetMessage().getSlot().slot()) + " to " + String.valueOf(event.getLocoNetMessage().getSpd().spd()));
+                System.out.println("Request to deactivate loco net");
                 event.setResult(new GpOff());
         });
-        EventManager.getInstance().registerEventListener(LocoNetEvent.GpOnEvent.class, event ->
-                Logger.LOGGER.info("loco net activated"));
-        EventManager.getInstance().registerEventListener(LocoNetEvent.class, event ->
-                Logger.LOGGER.info("Some loco net event occurred: " + event.toString()));
 
-        EventManager.getInstance().triggerEvent(new LocoNetEvent<>(new LocoSpd(new SlotArg((short)7),0)));
-        EventManager.getInstance().triggerEvent(new LocoNetEvent<>(new GpOn()));
-        EventManager.getInstance().triggerEvent(new LocoNetEvent.GpOnEvent(new GpOn()));
-        EventManager.getInstance().triggerEventAsync(new LocoNetEvent.LocoSpdEvent(new LocoSpd(new SlotArg((short) 4), 0)), ret -> {
-            if(ret instanceof GpOff) {
-                Logger.LOGGER.info("Received response!");
-            } else {
-                Logger.LOGGER.log(Level.SEVERE, "Unexpected response!");
-                throw new IllegalStateException();
-            }
-        });
+        ApplicationEventPublisher publisher = builder.run();
+        builder.getListeners().add((LocoNetEvent.GpOnEvent event) ->
+                System.out.println("loco net activated"));
+        builder.getListeners().add((LocoNetEvent<ILocoNetMessage, ILocoNetMessage> event) ->
+                System.out.println("Some loco net event occurred: " + event.toString()));
+
+        publisher.publishEvent(new LocoNetEvent<>(new LocoSpd(new SlotArg((short)7),0)));
+        publisher.publishEvent(new LocoNetEvent<>(new GpOn()));
+        publisher.publishEvent(new LocoNetEvent.GpOnEvent(new GpOn()));
+        publisher.publishEvent(new LocoNetEvent.LocoSpdEvent(new LocoSpd(new SlotArg((short) 4), 0)));
 
         for(String port: PortInfos.getAllPorts()) {
-            Logger.LOGGER.info("Connectable port: " + port);
+            System.out.println("Connectable port: " + port);
         }
 
-        Logger.LOGGER.info("Rust code connection was successfully.");
+        System.out.println("Rust code connection was successfully.");
     }
 
-    @Test public void testLocoNetConnection() throws Exception {
+    @Test
+    public void testLocoNetConnection() throws Exception {
+
+        SpringApplication builder = new SpringApplicationBuilder(LibraryTest.class).build();
+
         Utils.loadNativeLibrary();
-        LocoNetHandler handler = new LocoNetHandler();
+        LocoNetHandler handler = new LocoNetHandler(builder.run(), (Logger) System.getLogger(""));
 
         if(handler.getPorts().length == 0) {
-            Logger.LOGGER.info("No port to connect to, scip loco net connection tests!");
+            System.out.println("No port to connect to, scip loco net connection tests!");
         } else {
-            EventManager.getInstance().registerEventListener(LocoNetEvent.class, event -> Logger.LOGGER.info(event.getLocoNetMessage().toString()));
+            builder.getListeners().add((LocoNetEvent<ILocoNetMessage, ILocoNetMessage> event) -> System.out.println(event.getLocoNetMessage().toString()));
+
 
             handler.connectTo(PortInfos.getAllPorts()[0]);
 
@@ -82,7 +86,7 @@ public class LibraryTest {
 
             assertFalse(handler.send(new GpOff()));
 
-            Logger.LOGGER.info("loco net connection was successfully");
+            System.out.println("loco net connection was successfully");
         }
     }
 
