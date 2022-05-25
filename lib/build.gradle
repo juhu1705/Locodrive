@@ -165,3 +165,7 @@ sourceSets {
         }
     }
 }
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}

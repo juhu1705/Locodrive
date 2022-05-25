@@ -51,7 +51,15 @@ Please note: Always add me to your pull request to test your changes with an act
 | JetBrains Java Annotations | 20.1.0  | Apache v2.0 |
 | noisruker event-manager    | 1.1.0   | GPL v3.0    |
 | noisruker logger           | 1.0.3   | GPL v3.0    |
-| NativeUtils                | ?       | MIT         |
+| NativeUtils                | -       | MIT         |
+| Spring Context             | 5.3.20  | Apache v2.0 |
+
+### Testing
+
+| Dependency  | Version | License                        |
+|-------------|---------|--------------------------------|
+| JUnit       | 5.3.20  | Eclipse Public License - v 2.0 |
+| Spring Boot | 2.7.0   | Apache v2.0                    |
 
 ### Loco Net information
 
