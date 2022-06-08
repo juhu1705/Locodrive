@@ -374,6 +374,8 @@ foreign_class!(
 pub struct SlotArg(u8);
 
 impl SlotArg {
+    pub fn new(slot: u16) -> Self {Self((slot as u8) & 0x7F)}
+
     pub fn parse(slot: u8) -> Self {
         Self(slot & 0x7F)
     }
@@ -413,8 +415,8 @@ foreign_class!(
 class SlotArg {
     self_type SlotArg;
         /// Creates a slot with the given slot number
-        /// @param slot The slots number
-    constructor SlotArg::parse(slot: u8) -> SlotArg;
+        /// @param slot The slots number (Only 7 least significant bits)
+    constructor SlotArg::new(slot: u16) -> SlotArg;
         /// @return The slot of this arg
     fn SlotArg::slot(&self) -> u8;
         /// Sets the slot to the given number
@@ -466,10 +468,10 @@ impl SpeedArg {
         }
     }
 
-    pub fn new(spd: u8) -> Self {
+    pub fn new(spd: u16) -> Self {
         match spd {
             0x00 => Self::Stop,
-            _ => Self::Drive(spd)
+            _ => Self::Drive(spd as u8)
         }
     }
 
@@ -521,7 +523,7 @@ foreign_class!(
     self_type SpeedArg;
         /// Sets the speed to the given spd. 0 is a normal stop. To set an emergency stop use SpeedArg()
         /// @param spd The speed to set this speed arg to
-    constructor SpeedArg::new(spd: u8) -> SpeedArg;
+    constructor SpeedArg::new(spd: u16) -> SpeedArg;
         /// Creates a new SpeedArg with the spd set to emergency stop.
     constructor SpeedArg::new_emergency() -> SpeedArg;
         /// @return The speed of this arg with a value reserved for the emergency stop. 0 - Stop, 1 - Emergency Stop, other - Speed: other-1
@@ -2220,6 +2222,14 @@ impl FunctionArg {
         FunctionArg(group, 0)
     }
 
+    pub fn c_new(group: u16) -> Self {
+        FunctionArg(group as u8, 0)
+    }
+
+    pub fn c_parse(group: u16, function: u16) -> Self {
+        FunctionArg(group as u8, function as u8)
+    }
+
     pub fn parse(group: u8, function: u8) -> Self {
         FunctionArg(group, function)
     }
@@ -2353,11 +2363,11 @@ foreign_class!(
         self_type FunctionArg;
         /// Creates a new function arg
         /// @param group The group to decide availability of the specific function args (see class description)
-        constructor FunctionArg::new(group: u8) -> FunctionArg;
+        constructor FunctionArg::c_new(group: u16) -> FunctionArg;
         /// Creates a new function arg
         /// @param group The group to decide availability of the specific function args (see class description)
         /// @param f The function value to set (8 bit)
-        constructor FunctionArg::parse(group: u8, f: u8) -> FunctionArg;
+        constructor FunctionArg::c_parse(group: u16, f: u16) -> FunctionArg;
         /// @return The function group
         fn FunctionArg::group(&self) -> u8;
         /// @return Available function values for set group (see class description) or standard false if no value is available
@@ -3207,8 +3217,8 @@ foreign_class!(
 pub struct WrSlDataTime(FastClock, TrkArg, IdArg);
 
 impl WrSlDataTime {
-    pub fn new(fast_clock: FastClock, trk_arg: TrkArg, id_arg: IdArg) -> Self {
-        WrSlDataTime(fast_clock, trk_arg, id_arg)
+    pub fn new(fast_clock: &FastClock, trk_arg: &TrkArg, id_arg: &IdArg) -> Self {
+        WrSlDataTime(*fast_clock, *trk_arg, *id_arg)
     }
 
     pub fn parse(clk_rate: u8, frac_minsh: u8, frac_minsl: u8, mins: u8, trk: u8, hours: u8, days: u8, clk_cntr: u8, id1: u8, id2: u8) -> Self {
@@ -3254,7 +3264,7 @@ foreign_class!(
         /// @param fastClock The fast clock to use
         /// @param trkArg The trk params to use
         /// @param idArg The id of the device last setting the clock. id = 0: no set happens. id: 7F 7x are reserved for PC access
-        constructor WrSlDataTime::new(fastClock: FastClock, trkArg: TrkArg, idArg: IdArg) -> WrSlDataTime;
+        constructor WrSlDataTime::new(fastClock: &FastClock, trkArg: &TrkArg, idArg: &IdArg) -> WrSlDataTime;
         /// @return The fast clock in use
         fn WrSlDataTime::fast_clock(&self) -> FastClock; alias fastClock;
         /// @return The track params
@@ -3295,8 +3305,8 @@ foreign_class!(
 pub struct WrSlDataPt(Pcmd, AddressArg, TrkArg, CvDataArg);
 
 impl WrSlDataPt {
-    pub fn new(pcmd: Pcmd, opsa: AddressArg, trk_arg: TrkArg, cv_data_arg: CvDataArg) -> Self {
-        WrSlDataPt(pcmd, opsa, trk_arg, cv_data_arg)
+    pub fn new(pcmd: &Pcmd, opsa: &AddressArg, trk_arg: &TrkArg, cv_data_arg: &CvDataArg) -> Self {
+        WrSlDataPt(*pcmd, *opsa, *trk_arg, *cv_data_arg)
     }
 
     pub fn parse(pcmd: u8, _arg3: u8, hopsa: u8, lopsa: u8, trk: u8, cvh: u8, cvl: u8, data7: u8, _arg10: u8, _arg11: u8) -> Self {
@@ -3346,7 +3356,7 @@ foreign_class!(
         /// @param opsa The operation mode programming
         /// @param trkArg The track arg
         /// @param cvDataArg The data and cv args for this programming command
-        constructor WrSlDataPt::new(pcmd: Pcmd, opsa: AddressArg, trkArg: TrkArg, cvDataArg: CvDataArg) -> WrSlDataPt;
+        constructor WrSlDataPt::new(pcmd: &Pcmd, opsa: &AddressArg, trkArg: &TrkArg, cvDataArg: &CvDataArg) -> WrSlDataPt;
         /// @return The programmer command or 0 to abort current operation
         fn WrSlDataPt::pcmd(&self) -> Pcmd;
         /// @return The operation mode programming
@@ -3389,8 +3399,8 @@ foreign_class!(
 pub struct WrSlDataGeneral(SlotArg, Stat1Arg, Stat2Arg, AddressArg, SpeedArg, DirfArg, TrkArg, SndArg, IdArg);
 
 impl WrSlDataGeneral {
-    pub fn new(slot_arg: SlotArg, stat1_arg: Stat1Arg, stat2_arg: Stat2Arg, address_arg: AddressArg, speed_arg: SpeedArg, dirf_arg: DirfArg, trk_arg: TrkArg, id_arg: IdArg) -> Self {
-        WrSlDataGeneral(slot_arg, stat1_arg, stat2_arg, address_arg, speed_arg, dirf_arg, trk_arg, SndArg(0), id_arg)
+    pub fn new(slot_arg: &SlotArg, stat1_arg: &Stat1Arg, stat2_arg: &Stat2Arg, address_arg: &AddressArg, speed_arg: &SpeedArg, dirf_arg: &DirfArg, trk_arg: &TrkArg, id_arg: &IdArg) -> Self {
+        WrSlDataGeneral(*slot_arg, *stat1_arg, *stat2_arg, *address_arg, *speed_arg, *dirf_arg, *trk_arg, SndArg(0), *id_arg)
     }
 
     pub fn parse(slot: u8, stat1: u8, adr: u8, spd: u8, dirf: u8, trk: u8, stat2: u8, adr2: u8, snd: u8, id1: u8, id2: u8) -> Self {
@@ -3481,7 +3491,7 @@ foreign_class!(
         /// @param dirf The locomotives direction and functions
         /// @param trk The track
         /// @param id The id of the last setting device
-        constructor WrSlDataGeneral::new(slot: SlotArg, stat1: Stat1Arg, stat2: Stat2Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, id: IdArg) -> WrSlDataGeneral;
+        constructor WrSlDataGeneral::new(slot: &SlotArg, stat1: &Stat1Arg, stat2: &Stat2Arg, address: &AddressArg, speed: &SpeedArg, dirf: &DirfArg, trk: &TrkArg, id: &IdArg) -> WrSlDataGeneral;
         /// @return The slot to write to
         fn WrSlDataGeneral::slot_arg(&self) -> SlotArg; alias slotArg;
         /// @return The status for speed steps
@@ -3542,8 +3552,8 @@ pub struct WrSlDataStructure {
 }
 
 impl WrSlDataStructure {
-    pub fn new(slot_type: u8, time_slot: WrSlDataTime, pt_slot: WrSlDataPt, general_slot: WrSlDataGeneral) -> Self {
-        WrSlDataStructure { slot_type, time_slot, pt_slot, general_slot }
+    pub fn new(slot_type: u8, time_slot: &WrSlDataTime, pt_slot: &WrSlDataPt, general_slot: &WrSlDataGeneral) -> Self {
+        WrSlDataStructure { slot_type, time_slot:*time_slot, pt_slot:*pt_slot, general_slot:*general_slot }
     }
 
     pub fn parse(arg1: u8, arg2: u8, arg3: u8, arg4: u8, arg5: u8, arg6: u8, arg7: u8, arg8: u8, arg9: u8, arg10: u8, arg11: u8) -> Self {
@@ -3608,7 +3618,7 @@ foreign_class!(
         /// @param general_slot The general slot to use
         /// @param pt_slot The pt slot to use
         /// @param time_slot The time slot to use
-        constructor WrSlDataStructure::new(slot_type: u8, general_slot: WrSlDataTime, pt_slot: WrSlDataPt, time_slot: WrSlDataGeneral) -> WrSlDataStructure;
+        constructor WrSlDataStructure::new(slot_type: u8, general_slot: &WrSlDataTime, pt_slot: &WrSlDataPt, time_slot: &WrSlDataGeneral) -> WrSlDataStructure;
         /// @return The slots type (0x7C = pt_slot, 0x7B = time_slot, else general slot)
         fn WrSlDataStructure::slot_type(&self) -> u8; alias slotType;
         /// @return The time slot write structure
@@ -4884,7 +4894,10 @@ impl LocoNetMessage for LocoAdr {
 }
 
 impl LocoAdr {
-    pub fn new(address: AddressArg) -> Self { LocoAdr(address) }
+    pub fn new(address: &AddressArg) -> Self { LocoAdr(*address) }
+
+    pub fn address_from_int(address: u16) -> Self { LocoAdr(AddressArg::new(address))}
+
     pub fn get_address(&self) -> AddressArg { self.0 }
 
     fn to_string(&self) -> String {
@@ -4903,7 +4916,9 @@ foreign_class!(
     class LocoAdr {
         self_type LocoAdr;
         /// @param address The address to request a slot for.
-        constructor LocoAdr::new(address: AddressArg) -> LocoAdr;
+        constructor LocoAdr::new(address: &AddressArg) -> LocoAdr;
+        /// @param address The address to request a slot for. Automatically creates the needed address arg.
+        constructor LocoAdr::address_from_int(address: u16) -> LocoAdr;
         /// @return The loco address to request a slot for
         fn LocoAdr::get_address(&self) -> AddressArg; alias getAddress;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -4949,7 +4964,7 @@ impl LocoNetMessage for SwAck {
 }
 
 impl SwAck {
-    pub fn new(sw: SwitchArg) -> Self { SwAck(sw) }
+    pub fn new(sw: &SwitchArg) -> Self { SwAck(*sw) }
     pub fn get_switch(&self) -> SwitchArg { self.0 }
 
     fn to_string(&self) -> String {
@@ -4968,7 +4983,7 @@ foreign_class!(
     class SwAck {
         self_type SwAck;
         /// @param sw The switch to request acknowledgement for
-        constructor SwAck::new(sw: SwitchArg) -> SwAck;
+        constructor SwAck::new(sw: &SwitchArg) -> SwAck;
         /// @return The switch to request acknowledgement for
         fn SwAck::get_switch(&self) -> SwitchArg; alias getSwitch;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5014,7 +5029,7 @@ impl LocoNetMessage for SwState {
 }
 
 impl SwState {
-    pub fn new(sw: SwitchArg) -> Self { SwState(sw) }
+    pub fn new(sw: &SwitchArg) -> Self { SwState(*sw) }
     pub fn get_switch(&self) -> SwitchArg { self.0 }
 
     fn to_string(&self) -> String {
@@ -5033,7 +5048,7 @@ foreign_class!(
     class SwState {
         self_type SwState;
         /// @param sw The switch to request state for
-        constructor SwState::new(sw: SwitchArg) -> SwState;
+        constructor SwState::new(sw: &SwitchArg) -> SwState;
         /// @return The switch to request state for
         fn SwState::get_switch(&self) -> SwitchArg; alias getSwitch;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5079,7 +5094,7 @@ impl LocoNetMessage for RqSlData {
 }
 
 impl RqSlData {
-    pub fn new(slot: SlotArg) -> Self { RqSlData(slot) }
+    pub fn new(slot: &SlotArg) -> Self { RqSlData(*slot) }
     pub fn get_slot(&self) -> SlotArg { self.0 }
 
     fn to_string(&self) -> String {
@@ -5098,7 +5113,7 @@ foreign_class!(
     class RqSlData {
         self_type RqSlData;
         /// @param slot The slot to request data for
-        constructor RqSlData::new(slot: SlotArg) -> RqSlData;
+        constructor RqSlData::new(slot: &SlotArg) -> RqSlData;
         /// @return The slot to request data for
         fn RqSlData::get_slot(&self) -> SlotArg; alias getSlot;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5144,8 +5159,8 @@ impl LocoNetMessage for MoveSlots {
 }
 
 impl MoveSlots {
-    pub fn new(slot_from: SlotArg, slot_to: SlotArg) -> Self {
-        MoveSlots(slot_from, slot_to)
+    pub fn new(slot_from: &SlotArg, slot_to: &SlotArg) -> Self {
+        MoveSlots(*slot_from, *slot_to)
     }
     pub fn get_slot_from(&self) -> SlotArg { self.0 }
     pub fn get_slot_to(&self) -> SlotArg { self.1 }
@@ -5168,7 +5183,7 @@ foreign_class!(
         /// Moves the slot data from source to destination
         /// @param slotFrom The source slot
         /// @param slotTo The destination slot
-        constructor MoveSlots::new(slotFrom: SlotArg, slotTo: SlotArg) -> MoveSlots;
+        constructor MoveSlots::new(slotFrom: &SlotArg, slotTo: &SlotArg) -> MoveSlots;
         /// @return The source slot
         fn MoveSlots::get_slot_from(&self) -> SlotArg; alias getSlotFrom;
         /// @return The destination slot
@@ -5216,8 +5231,8 @@ impl LocoNetMessage for LinkSlots {
 }
 
 impl LinkSlots {
-    pub fn new(slot1: SlotArg, slot2: SlotArg) -> Self {
-        LinkSlots(slot1, slot2)
+    pub fn new(slot1: &SlotArg, slot2: &SlotArg) -> Self {
+        LinkSlots(*slot1, *slot2)
     }
     pub fn get_slot1(&self) -> SlotArg { self.0 }
     pub fn get_slot2(&self) -> SlotArg { self.1 }
@@ -5240,7 +5255,7 @@ foreign_class!(
         /// Link slot1 to slot2
         /// @param slot1 The slot to link
         /// @param slot2 The slot to link to
-        constructor LinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> LinkSlots;
+        constructor LinkSlots::new(slot1: &SlotArg, slot2: &SlotArg) -> LinkSlots;
         /// @return The slot to link
         fn LinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
         /// @return The slot to link to
@@ -5288,8 +5303,8 @@ impl LocoNetMessage for UnlinkSlots {
 }
 
 impl UnlinkSlots {
-    pub fn new(slot1: SlotArg, slot2: SlotArg) -> Self {
-        UnlinkSlots(slot1, slot2)
+    pub fn new(slot1: &SlotArg, slot2: &SlotArg) -> Self {
+        UnlinkSlots(*slot1, *slot2)
     }
     pub fn get_slot1(&self) -> SlotArg { self.0 }
     pub fn get_slot2(&self) -> SlotArg { self.1 }
@@ -5312,7 +5327,7 @@ foreign_class!(
         /// Unlink slot1 from slot2
         /// @param slot1 The slot to unlink
         /// @param slot2 The slot to unlink from
-        constructor UnlinkSlots::new(slot1: SlotArg, slot2: SlotArg) -> UnlinkSlots;
+        constructor UnlinkSlots::new(slot1: &SlotArg, slot2: &SlotArg) -> UnlinkSlots;
         /// @return slot1 The slot to unlink
         fn UnlinkSlots::get_slot1(&self) -> SlotArg; alias getSlot1;
         /// @return slot2 The slot to unlink from
@@ -5360,8 +5375,8 @@ impl LocoNetMessage for ConsistFunc {
 }
 
 impl ConsistFunc {
-    pub fn new(slot: SlotArg, dirf: DirfArg) -> Self {
-        ConsistFunc(slot, dirf)
+    pub fn new(slot: &SlotArg, dirf: &DirfArg) -> Self {
+        ConsistFunc(*slot, *dirf)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dirf(&self) -> DirfArg { self.1 }
@@ -5384,7 +5399,7 @@ foreign_class!(
         /// Set function bits in a consist uplink element
         /// @param slot The slot to get uplink element from
         /// @param dirf The function to set
-        constructor ConsistFunc::new(slot: SlotArg, dirf: DirfArg) -> ConsistFunc;
+        constructor ConsistFunc::new(slot: &SlotArg, dirf: &DirfArg) -> ConsistFunc;
         /// @return The slot to get uplink element from
         fn ConsistFunc::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The function to set
@@ -5432,8 +5447,8 @@ impl LocoNetMessage for SlotStat1 {
 }
 
 impl SlotStat1 {
-    pub fn new(slot: SlotArg, stat1: Stat1Arg) -> Self {
-        SlotStat1(slot, stat1)
+    pub fn new(slot: &SlotArg, stat1: &Stat1Arg) -> Self {
+        SlotStat1(*slot, *stat1)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_stat1(&self) -> Stat1Arg { self.1 }
@@ -5456,7 +5471,7 @@ foreign_class!(
         /// Write slot stat1 to slot
         /// @param slot The slot to write to
         /// @param stat1 The stat1 to write to the slot
-        constructor SlotStat1::new(slot: SlotArg, stat1: Stat1Arg) -> SlotStat1;
+        constructor SlotStat1::new(slot: &SlotArg, stat1: &Stat1Arg) -> SlotStat1;
         /// @return The slot to write to
         fn SlotStat1::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The stat1 to write
@@ -5504,8 +5519,8 @@ impl LocoNetMessage for LongAck {
 }
 
 impl LongAck {
-    pub fn new(lopc: LopcArg, ack1: Ack1Arg) -> Self {
-        LongAck(lopc, ack1)
+    pub fn new(lopc: &LopcArg, ack1: &Ack1Arg) -> Self {
+        LongAck(*lopc, *ack1)
     }
     pub fn get_lopc(&self) -> LopcArg { self.0 }
     pub fn get_ack1(&self) -> Ack1Arg { self.1 }
@@ -5528,7 +5543,7 @@ foreign_class!(
         /// Long acknowledgement answer
         /// @param lopc Copy of the op code with seventh bit set to zero
         /// @param ack1 Answer code (0 = error)
-        constructor LongAck::new(lopc: LopcArg, ack1: Ack1Arg) -> LongAck;
+        constructor LongAck::new(lopc: &LopcArg, ack1: &Ack1Arg) -> LongAck;
         /// @return Copy of the op code with seventh bit set to zero
         fn LongAck::get_lopc(&self) -> LopcArg; alias getLopc;
         /// @return Answer code (0 = error)
@@ -5576,8 +5591,8 @@ impl LocoNetMessage for InputRep {
 }
 
 impl InputRep {
-    pub fn new(in_arg: InArg) -> Self {
-        InputRep(in_arg)
+    pub fn new(in_arg: &InArg) -> Self {
+        InputRep(*in_arg)
     }
     pub fn get_in_arg(&self) -> InArg { self.0 }
 
@@ -5598,7 +5613,7 @@ foreign_class!(
         self_type InputRep;
         /// General sensor input
         /// @param inArg The sensor input and address
-        constructor InputRep::new(inArg: InArg) -> InputRep;
+        constructor InputRep::new(inArg: &InArg) -> InputRep;
         /// @return The sensor input and address
         fn InputRep::get_in_arg(&self) -> InArg; alias getInArg;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5644,8 +5659,8 @@ impl LocoNetMessage for SwRep {
 }
 
 impl SwRep {
-    pub fn new(sn_arg: SnArg) -> Self {
-        SwRep(sn_arg)
+    pub fn new(sn_arg: &SnArg) -> Self {
+        SwRep(*sn_arg)
     }
     pub fn get_sn_arg(&self) -> SnArg { self.0 }
 
@@ -5666,7 +5681,7 @@ foreign_class!(
         self_type SwRep;
         /// Turnout sensor state report
         /// @param snArg The sensor state report
-        constructor SwRep::new(snArg: SnArg) -> SwRep;
+        constructor SwRep::new(snArg: &SnArg) -> SwRep;
         /// @return Sensor state report
         fn SwRep::get_sn_arg(&self) -> SnArg; alias getSnArg;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5712,8 +5727,8 @@ impl LocoNetMessage for SwReq {
 }
 
 impl SwReq {
-    pub fn new(switch_arg: SwitchArg) -> Self {
-        SwReq(switch_arg)
+    pub fn new(switch_arg: &SwitchArg) -> Self {
+        SwReq(*switch_arg)
     }
     pub fn get_switch_arg(&self) -> SwitchArg { self.0 }
 
@@ -5734,7 +5749,7 @@ foreign_class!(
         self_type SwReq;
         /// Request switch function
         /// @param switchArg The switch and function to request
-        constructor SwReq::new(switchArg: SwitchArg) -> SwReq;
+        constructor SwReq::new(switchArg: &SwitchArg) -> SwReq;
         /// @return The switch and function to request
         fn SwReq::get_switch_arg(&self) -> SwitchArg; alias getSwitchArg;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -5780,8 +5795,8 @@ impl LocoNetMessage for LocoSnd {
 }
 
 impl LocoSnd {
-    pub fn new(slot: SlotArg, snd: SndArg) -> Self {
-        LocoSnd(slot, snd)
+    pub fn new(slot: &SlotArg, snd: &SndArg) -> Self {
+        LocoSnd(*slot, *snd)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_snd(&self) -> SndArg { self.1 }
@@ -5804,7 +5819,7 @@ foreign_class!(
         /// Sets slot sound function
         /// @param slot The slot to set the sound function to
         /// @param snd The sound function to set
-        constructor LocoSnd::new(slot: SlotArg, snd: SndArg) -> LocoSnd;
+        constructor LocoSnd::new(slot: &SlotArg, snd: &SndArg) -> LocoSnd;
         /// @return The slot to set the sound function to
         fn LocoSnd::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The sound function to set
@@ -5852,8 +5867,8 @@ impl LocoNetMessage for LocoDirf {
 }
 
 impl LocoDirf {
-    pub fn new(slot: SlotArg, dirf: DirfArg) -> Self {
-        LocoDirf(slot, dirf)
+    pub fn new(slot: &SlotArg, dirf: &DirfArg) -> Self {
+        LocoDirf(*slot, *dirf)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dirf(&self) -> DirfArg { self.1 }
@@ -5876,7 +5891,7 @@ foreign_class!(
         /// Set slot direction and functions 0 - 4
         /// @param slot The slot to set the direction and function to
         /// @param dirf The direction and function arguments
-        constructor LocoDirf::new(slot: SlotArg, dirf: DirfArg) -> LocoDirf;
+        constructor LocoDirf::new(slot: &SlotArg, dirf: &DirfArg) -> LocoDirf;
         /// @return The slot to set the direction and function to
         fn LocoDirf::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The direction and function arguments
@@ -5924,14 +5939,14 @@ impl LocoNetMessage for LocoSpd {
 }
 
 impl LocoSpd {
-    pub fn new_easy(slot: SlotArg, spd: u16) -> Self {
-        LocoSpd(slot, SpeedArg::new(spd as u8))
+    pub fn new_easy(slot: &SlotArg, spd: u16) -> Self {
+        LocoSpd(*slot, SpeedArg::new(spd))
     }
-    pub fn new(slot: SlotArg, spd: SpeedArg) -> Self {
-        LocoSpd(slot, spd)
+    pub fn new(slot: &SlotArg, spd: &SpeedArg) -> Self {
+        LocoSpd(*slot, *spd)
     }
-    pub fn emergency_stop(slot: SlotArg) -> Self {
-        LocoSpd(slot, SpeedArg::EmergencyStop)
+    pub fn emergency_stop(slot: &SlotArg) -> Self {
+        LocoSpd(*slot, SpeedArg::EmergencyStop)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_spd(&self) -> SpeedArg { self.1 }
@@ -5954,14 +5969,14 @@ foreign_class!(
         /// Sets the slots speed
         /// @param slot The slot to set the speed to
         /// @param spd The speed to set
-        constructor LocoSpd::new(slot: SlotArg, spd: SpeedArg) -> LocoSpd;
+        constructor LocoSpd::new(slot: &SlotArg, spd: &SpeedArg) -> LocoSpd;
         /// Sets the slot speed
         /// @param slot The slot to set the speed to
         /// @param spd The speed to set. Only values between 0 and 128 are allowed here.
-        constructor LocoSpd::new_easy(slot: SlotArg, spd: u16) -> LocoSpd;
+        constructor LocoSpd::new_easy(slot: &SlotArg, spd: u16) -> LocoSpd;
         /// Sets the slot speed to an emergency stop
         /// @param slot The slot to set the speed to
-        constructor LocoSpd::emergency_stop(slot: SlotArg) -> LocoSpd;
+        constructor LocoSpd::emergency_stop(slot: &SlotArg) -> LocoSpd;
         /// @return The slot to set the speed to
         fn LocoSpd::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The speed to set
@@ -6009,8 +6024,8 @@ impl LocoNetMessage for MultiSense {
 }
 
 impl MultiSense {
-    pub fn new(multi_sense_arg: MultiSenseArg, sense_adr: AddressArg) -> Self {
-        MultiSense(multi_sense_arg, sense_adr)
+    pub fn new(multi_sense_arg: &MultiSenseArg, sense_adr: &AddressArg) -> Self {
+        MultiSense(*multi_sense_arg, *sense_adr)
     }
     pub fn get_multi_sense_arg(&self) -> MultiSenseArg { self.0 }
     pub fn get_sense_adr(&self) -> AddressArg { self.1 }
@@ -6033,7 +6048,7 @@ foreign_class!(
         /// Power management and transponding message
         /// @param multiSenseArg The multi sense part
         /// @param senseAdr The sense address
-        constructor MultiSense::new(multiSenseArg: MultiSenseArg, senseAdr: AddressArg) -> MultiSense;
+        constructor MultiSense::new(multiSenseArg: &MultiSenseArg, senseAdr: &AddressArg) -> MultiSense;
         /// @return The multi sense part
         fn MultiSense::get_multi_sense_arg(&self) -> MultiSenseArg; alias getMultiSenseArg;
         /// @return The sense address
@@ -6081,8 +6096,8 @@ impl LocoNetMessage for UhliFun {
 }
 
 impl UhliFun {
-    pub fn new(slot: SlotArg, function: FunctionArg) -> Self {
-        UhliFun(slot, function)
+    pub fn new(slot: &SlotArg, function: &FunctionArg) -> Self {
+        UhliFun(*slot, *function)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_function(&self) -> FunctionArg { self.1 }
@@ -6105,7 +6120,7 @@ foreign_class!(
         /// Sets the function values to the given slot
         /// @param slot The slot to set the function values to
         /// @param function The function values to set
-        constructor UhliFun::new(slot: SlotArg, function: FunctionArg) -> UhliFun;
+        constructor UhliFun::new(slot: &SlotArg, function: &FunctionArg) -> UhliFun;
         /// @return The slot to set the function values to
         fn UhliFun::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The function values
@@ -6153,8 +6168,8 @@ impl LocoNetMessage for WrSlData {
 }
 
 impl WrSlData {
-    pub fn new(slot_data: WrSlDataStructure) -> Self {
-        WrSlData(slot_data)
+    pub fn new(slot_data: &WrSlDataStructure) -> Self {
+        WrSlData(*slot_data)
     }
     pub fn get_slot_data_structure(&self) -> WrSlDataStructure { self.0 }
 
@@ -6175,7 +6190,7 @@ foreign_class!(
         self_type WrSlData;
         /// A new write slot data message
         /// @param slotData The slot write data structure to create the message of
-        constructor WrSlData::new(slotData: WrSlDataStructure) -> WrSlData;
+        constructor WrSlData::new(slotData: &WrSlDataStructure) -> WrSlData;
         /// @return The slot write data structure to create the message of
         fn WrSlData::get_slot_data_structure(&self) -> WrSlDataStructure; alias getSlotDataStructure;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -6222,8 +6237,8 @@ impl LocoNetMessage for SlRdData {
 }
 
 impl SlRdData {
-    pub fn new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> Self {
-        SlRdData(slot, stat1, address, speed, dirf, trk, stat2, SndArg::parse(0), id)
+    pub fn new(slot: &SlotArg, stat1: &Stat1Arg, address: &AddressArg, speed: &SpeedArg, dirf: &DirfArg, trk: &TrkArg, stat2: &Stat2Arg, id: &IdArg) -> Self {
+        SlRdData(*slot, *stat1, *address, *speed, *dirf, *trk, *stat2, SndArg::parse(0), *id)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_stat1(&self) -> Stat1Arg { self.1 }
@@ -6259,7 +6274,7 @@ foreign_class!(
         /// @param trk Global system track status
         /// @param stat2 More slot status information
         /// @param id Throttle or PC ID if slot status 2 is id encoded alias
-        constructor SlRdData::new(slot: SlotArg, stat1: Stat1Arg, address: AddressArg, speed: SpeedArg, dirf: DirfArg, trk: TrkArg, stat2: Stat2Arg, id: IdArg) -> SlRdData;
+        constructor SlRdData::new(slot: &SlotArg, stat1: &Stat1Arg, address: &AddressArg, speed: &SpeedArg, dirf: &DirfArg, trk: &TrkArg, stat2: &Stat2Arg, id: &IdArg) -> SlRdData;
         /// @return The slot the response is for
         fn SlRdData::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The slots status with speed steps
@@ -6321,8 +6336,8 @@ impl LocoNetMessage for ImmPacket {
 }
 
 impl ImmPacket {
-    pub fn new(im_arg: ImArg) -> Self {
-        ImmPacket(im_arg)
+    pub fn new(im_arg: &ImArg) -> Self {
+        ImmPacket(*im_arg)
     }
     pub fn get_im_arg(&self) -> ImArg { self.0 }
 
@@ -6343,7 +6358,7 @@ foreign_class!(
         self_type ImmPacket;
         /// Send immediate m byte packet (Digitrax f9 - f28)
         /// @param imArg The im message
-        constructor ImmPacket::new(imArg: ImArg) -> ImmPacket;
+        constructor ImmPacket::new(imArg: &ImArg) -> ImmPacket;
         /// @return The im message
         fn ImmPacket::get_im_arg(&self) -> ImArg; alias getImArg;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -6394,8 +6409,8 @@ impl LocoNetMessage for Rep {
 }
 
 impl Rep {
-    pub fn new(rep: RepStructure) -> Self {
-        Rep(rep)
+    pub fn new(rep: &RepStructure) -> Self {
+        Rep(*rep)
     }
     pub fn get_rep(&self) -> RepStructure { self.0 }
 
@@ -6416,7 +6431,7 @@ foreign_class!(
         self_type Rep;
         /// A report message.
         /// @param rep The report structure of this message
-        constructor Rep::new(rep: RepStructure) -> Rep;
+        constructor Rep::new(rep: &RepStructure) -> Rep;
         /// @return This methods report structure
         fn Rep::get_rep(&self) -> RepStructure; alias getRep;
         /// Sends the message to the loco net (You need a loco net connection. I recommend to use {@link de.noisruker.locodrive.control.LocoNetHandler#send(ILocoNetMessage)} to send messages, if the LocoNetHandler has a port set)
@@ -6462,8 +6477,8 @@ impl LocoNetMessage for PeerXfer {
 }
 
 impl PeerXfer {
-    pub fn new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> Self {
-        PeerXfer(slot, dst, pxct)
+    pub fn new(slot: &SlotArg, dst: &DstArg, pxct: &PxctData) -> Self {
+        PeerXfer(*slot, *dst, *pxct)
     }
     pub fn get_slot(&self) -> SlotArg { self.0 }
     pub fn get_dst(&self) -> DstArg { self.1 }
@@ -6488,7 +6503,7 @@ foreign_class!(
         /// @param slot The slot to get the data from
         /// @param dst The destination to move the byte to
         /// @param pxct The pxct data bytes to move
-        constructor PeerXfer::new(slot: SlotArg, dst: DstArg, pxct: PxctData) -> PeerXfer;
+        constructor PeerXfer::new(slot: &SlotArg, dst: &DstArg, pxct: &PxctData) -> PeerXfer;
         /// @return The slot to get the data from
         fn PeerXfer::get_slot(&self) -> SlotArg; alias getSlot;
         /// @return The destination to move the byte to
