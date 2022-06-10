@@ -69,7 +69,7 @@ jobs:
 
       - name: Gradle Test
         run: |
-          gradle test
+          gradle :lib:test --tests "de.noisruker.locodrive.LibraryTest"
 
       # ℹ️ Command-line programs to run using the OS shell.
       # 📚 https://git.io/JvXDl
