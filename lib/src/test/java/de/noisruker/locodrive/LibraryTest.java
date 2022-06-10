@@ -144,7 +144,7 @@ public class LibraryTest {
 
             Thread.sleep(1000);
 
-            assertNotEquals(TRAIN_3_SLOT.slot(), (short) -1);
+            assertNotEquals(TRAIN_3_SLOT.slot(), (short) 0);
 
             assertTrue(handler.send(new GpOn()));
 
@@ -152,6 +152,9 @@ public class LibraryTest {
             assertTrue(handler.send(new LocoSpd(TRAIN_3_SLOT, 0)));
 
             assertTrue(handler.send(new GpOff()));
+
+            assertTrue(handler.send(new SwReq(new SwitchArg(5, SwitchDirection.CURVED, false))));
+            assertTrue(handler.send(new SwReq(new SwitchArg(4, SwitchDirection.CURVED, true))));
 
             handler.stop();
 
