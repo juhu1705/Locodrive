@@ -67,6 +67,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Gradle Test
+        run: |
+          gradle :lib:test --tests "de.noisruker.locodrive.LibraryTest"
+
       # ℹ️ Command-line programs to run using the OS shell.
       # 📚 https://git.io/JvXDl
 
