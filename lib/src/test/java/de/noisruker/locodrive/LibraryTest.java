@@ -112,7 +112,7 @@ public class LibraryTest {
         System.out.println("Rust code connection was successfully!");
     }
 
-    static SlotArg TRAIN_3_SLOT = new SlotArg(-1);
+    static SlotArg TRAIN_3_SLOT = new SlotArg(0);
 
     @Test
     public void testLocoNetConnection() throws Exception {
