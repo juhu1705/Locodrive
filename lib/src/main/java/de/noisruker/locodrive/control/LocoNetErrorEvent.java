@@ -24,7 +24,7 @@ import de.noisruker.locodrive.args.MessageParseError;
 /**
  * This event holds an error thrown by the loco net
  */
-public class LocoNetErrorEvent extends Event<Void> {
+public class LocoNetErrorEvent extends RailroadEvent {
 
     /**
      * The error thrown by the loco net

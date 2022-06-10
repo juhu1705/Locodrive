@@ -32,7 +32,7 @@ public class LibraryTest {
 
     @Test
     public void testRustConnection() throws Exception {
-        System.err.println("Try rust code connection");
+        System.out.println("Try rust code connection");
 
         ConfigurableApplicationContext context = SpringApplication.run(LibraryTest.class);
 
@@ -45,7 +45,7 @@ public class LibraryTest {
         SwitchArg swArg = new SwitchArg(3, SwitchDirection.STRAIGHT, true);
         SpeedArg speedArg = new SpeedArg(121);
 
-        LocoNetEvent<ILocoNetMessage, ILocoNetMessage>[] runEvents = new LocoNetEvent[] {
+        LocoNetEvent<ILocoNetMessage>[] runEvents = new LocoNetEvent[] {
                 new LocoNetEvent.IdleEvent(new Idle()),
                 new LocoNetEvent.GpOffEvent(new GpOff()),
                 new LocoNetEvent.GpOnEvent(new GpOn()),
@@ -78,19 +78,19 @@ public class LibraryTest {
                 new LocoNetEvent.PeerXferEvent(new PeerXfer(slot, new DstArg(20), new PxctData((short) 20, (short) 239, (short) 230, (short) 0, (short) 0, (short) 0, (short) 2, (short) 2, (short) 3)))
         };
 
-        List<LocoNetEvent<ILocoNetMessage, ILocoNetMessage>> items = new CopyOnWriteArrayList<>();
+        List<LocoNetEvent<ILocoNetMessage>> items = new CopyOnWriteArrayList<>();
 
         context.addApplicationListener((LocoNetEvent.LocoSpdEvent event) -> {
                 System.out.println("Set speed of slot " + String.valueOf(event.getLocoNetMessage().getSlot().slot()) + " to " + String.valueOf(event.getLocoNetMessage().getSpd().spd()));
                 System.out.println("Request to deactivate loco net");
-                event.setResult(new GpOff());
+                context.publishEvent(new LocoNetEvent.GpOffEvent(new GpOff()));
                 items.add((LocoNetEvent) event);
         });
 
         context.addApplicationListener((LocoNetEvent.GpOnEvent event) -> {
                 System.out.println("loco net activated");
         });
-        context.addApplicationListener((LocoNetEvent<ILocoNetMessage, ILocoNetMessage> event) -> {
+        context.addApplicationListener((LocoNetEvent<ILocoNetMessage> event) -> {
                 System.out.println("Some loco net event occurred: " + event.getLocoNetMessage());
 
                 if(event.getLocoNetMessage() instanceof LocoSpd)
@@ -103,17 +103,20 @@ public class LibraryTest {
 
         Thread.sleep(1000);
 
-        assertEquals(runEvents.length, items.size());
+        assertEquals(runEvents.length + 2, items.size());
 
         for(String port: PortInfos.getAllPorts()) {
             System.out.println("Connectable port: " + port);
         }
 
-        System.out.println("Rust code connection was successfully.");
+        System.out.println("Rust code connection was successfully!");
     }
+
+    static SlotArg TRAIN_3_SLOT = new SlotArg(-1);
 
     @Test
     public void testLocoNetConnection() throws Exception {
+        System.out.println("Try loco net connection!");
 
         ConfigurableApplicationContext context = SpringApplication.run(LibraryTest.class);
 
@@ -122,8 +125,12 @@ public class LibraryTest {
         if(handler.getPorts().length == 0) {
             System.out.println("No port to connect to, scip loco net connection tests!");
         } else {
-            context.addApplicationListener((LocoNetEvent<ILocoNetMessage, ILocoNetMessage> event) -> System.out.println(event.getLocoNetMessage()));
+            context.addApplicationListener((LocoNetEvent<ILocoNetMessage> event) -> System.out.println(event.getLocoNetMessage()));
 
+            context.addApplicationListener((LocoNetEvent.SlRdDataEvent event) -> {
+                SlRdData data = event.getLocoNetMessage();
+                TRAIN_3_SLOT = data.getSlot();
+            });
 
             handler.connectTo(PortInfos.getAllPorts()[0]);
 
@@ -131,10 +138,16 @@ public class LibraryTest {
 
             assertTrue(handler.send(new LocoAdr(new AddressArg(3))));
 
-            assertTrue(handler.send(new GpOff()));
+            Thread.sleep(1000);
 
-            assertTrue(handler.send(new LocoSpd(new SlotArg((short) 7), 100)));
-            assertTrue(handler.send(new LocoSpd(new SlotArg((short) 7), 0)));
+            assertNotEquals(TRAIN_3_SLOT.slot(), (short) -1);
+
+            assertTrue(handler.send(new GpOn()));
+
+            assertTrue(handler.send(new LocoSpd(TRAIN_3_SLOT, 100)));
+            assertTrue(handler.send(new LocoSpd(TRAIN_3_SLOT, 0)));
+
+            assertTrue(handler.send(new GpOff()));
 
             handler.stop();
 
@@ -142,7 +155,7 @@ public class LibraryTest {
 
             assertFalse(handler.send(new GpOff()));
 
-            System.out.println("loco net connection was successfully");
+            System.out.println("loco net connection was successfully!");
         }
     }
 

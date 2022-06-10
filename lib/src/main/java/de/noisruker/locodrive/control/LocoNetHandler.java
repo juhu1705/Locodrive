@@ -227,7 +227,7 @@ public class LocoNetHandler {
      * @return If the sending was successfully
      * @throws IllegalStateException If no port for this loco net is configured (No connection configured)
      */
-    public synchronized boolean send(@NotNull ILocoNetMessage message) throws IllegalStateException {
+    public boolean send(@NotNull ILocoNetMessage message) throws IllegalStateException {
         if(this.connector == null)
             throw new IllegalStateException("No port is configured");
 

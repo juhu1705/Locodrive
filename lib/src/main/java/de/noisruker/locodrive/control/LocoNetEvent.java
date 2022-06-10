@@ -25,9 +25,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * This event holds a loco net message received by the loco net
  * @param <T> The loco nets message received type
- * @param <R> The events result extending some {@link ILocoNetMessage}
  */
-public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> extends Event<R> {
+public class LocoNetEvent<T extends ILocoNetMessage> extends RailroadEvent {
 
     /**
      * The by the loco net received loco net message
@@ -53,7 +52,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link Idle} message from the loco net
      */
-    public static class IdleEvent extends LocoNetEvent<Idle, ILocoNetMessage> {
+    public static class IdleEvent extends LocoNetEvent<Idle> {
         /**
          * @param locoNetMessage The received message
          */
@@ -65,7 +64,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link GpOn} message from the loco net
      */
-    public static class GpOnEvent extends LocoNetEvent<GpOn, ILocoNetMessage> {
+    public static class GpOnEvent extends LocoNetEvent<GpOn> {
         /**
          * @param locoNetMessage The received message
          */
@@ -77,7 +76,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link GpOff} message from the loco net
      */
-    public static class GpOffEvent extends LocoNetEvent<GpOff, ILocoNetMessage> {
+    public static class GpOffEvent extends LocoNetEvent<GpOff> {
         /**
          * @param locoNetMessage The received message
          */
@@ -89,7 +88,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link Busy} message from the loco net
      */
-    public static class BusyEvent extends LocoNetEvent<Busy, ILocoNetMessage> {
+    public static class BusyEvent extends LocoNetEvent<Busy> {
         /**
          * @param locoNetMessage The received message
          */
@@ -101,7 +100,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LocoAdr} message from the loco net
      */
-    public static class LocoAdrEvent extends LocoNetEvent<LocoAdr, ILocoNetMessage> {
+    public static class LocoAdrEvent extends LocoNetEvent<LocoAdr> {
         /**
          * @param locoNetMessage The received message
          */
@@ -113,7 +112,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SwAck} message from the loco net
      */
-    public static class SwAckEvent extends LocoNetEvent<SwAck, ILocoNetMessage> {
+    public static class SwAckEvent extends LocoNetEvent<SwAck> {
         /**
          * @param locoNetMessage The received message
          */
@@ -125,7 +124,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SwState} message from the loco net
      */
-    public static class SwStateEvent extends LocoNetEvent<SwState, ILocoNetMessage> {
+    public static class SwStateEvent extends LocoNetEvent<SwState> {
         /**
          * @param locoNetMessage The received message
          */
@@ -137,7 +136,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link RqSlData} message from the loco net
      */
-    public static class RqSlDataEvent extends LocoNetEvent<RqSlData, ILocoNetMessage> {
+    public static class RqSlDataEvent extends LocoNetEvent<RqSlData> {
         /**
          * @param locoNetMessage The received message
          */
@@ -149,7 +148,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link MoveSlots} message from the loco net
      */
-    public static class MoveSlotsEvent extends LocoNetEvent<MoveSlots, ILocoNetMessage> {
+    public static class MoveSlotsEvent extends LocoNetEvent<MoveSlots> {
         /**
          * @param locoNetMessage The received message
          */
@@ -161,7 +160,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LinkSlots} message from the loco net
      */
-    public static class LinkSlotsEvent extends LocoNetEvent<LinkSlots, ILocoNetMessage> {
+    public static class LinkSlotsEvent extends LocoNetEvent<LinkSlots> {
         /**
          * @param locoNetMessage The received message
          */
@@ -173,7 +172,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link UnlinkSlots} message from the loco net
      */
-    public static class UnlinkSlotsEvent extends LocoNetEvent<UnlinkSlots, ILocoNetMessage> {
+    public static class UnlinkSlotsEvent extends LocoNetEvent<UnlinkSlots> {
         /**
          * @param locoNetMessage The received message
          */
@@ -185,7 +184,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link ConsistFunc} message from the loco net
      */
-    public static class ConsistFuncEvent extends LocoNetEvent<ConsistFunc, ILocoNetMessage> {
+    public static class ConsistFuncEvent extends LocoNetEvent<ConsistFunc> {
         /**
          * @param locoNetMessage The received message
          */
@@ -197,7 +196,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SlotStat1} message from the loco net
      */
-    public static class SlotStat1Event extends LocoNetEvent<SlotStat1, ILocoNetMessage> {
+    public static class SlotStat1Event extends LocoNetEvent<SlotStat1> {
         /**
          * @param locoNetMessage The received message
          */
@@ -209,7 +208,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LongAck} message from the loco net
      */
-    public static class LongAckEvent extends LocoNetEvent<LongAck, ILocoNetMessage> {
+    public static class LongAckEvent extends LocoNetEvent<LongAck> {
         /**
          * @param locoNetMessage The received message
          */
@@ -221,7 +220,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link InputRep} message from the loco net
      */
-    public static class InputRepEvent extends LocoNetEvent<InputRep, ILocoNetMessage> {
+    public static class InputRepEvent extends LocoNetEvent<InputRep> {
         /**
          * @param locoNetMessage The received message
          */
@@ -233,7 +232,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SwRep} message from the loco net
      */
-    public static class SwRepEvent extends LocoNetEvent<SwRep, ILocoNetMessage> {
+    public static class SwRepEvent extends LocoNetEvent<SwRep> {
         /**
          * @param locoNetMessage The received message
          */
@@ -245,7 +244,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SwReq} message from the loco net
      */
-    public static class SwReqEvent extends LocoNetEvent<SwReq, ILocoNetMessage> {
+    public static class SwReqEvent extends LocoNetEvent<SwReq> {
         /**
          * @param locoNetMessage The received message
          */
@@ -257,7 +256,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LocoSnd} message from the loco net
      */
-    public static class LocoSndEvent extends LocoNetEvent<LocoSnd, ILocoNetMessage> {
+    public static class LocoSndEvent extends LocoNetEvent<LocoSnd> {
         /**
          * @param locoNetMessage The received message
          */
@@ -269,7 +268,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LocoDirf} message from the loco net
      */
-    public static class LocoDirfEvent extends LocoNetEvent<LocoDirf, ILocoNetMessage> {
+    public static class LocoDirfEvent extends LocoNetEvent<LocoDirf> {
         /**
          * @param locoNetMessage The received message
          */
@@ -281,7 +280,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link LocoSpd} message from the loco net
      */
-    public static class LocoSpdEvent extends LocoNetEvent<LocoSpd, ILocoNetMessage> {
+    public static class LocoSpdEvent extends LocoNetEvent<LocoSpd> {
         /**
          * @param locoNetMessage The received message
          */
@@ -293,7 +292,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link MultiSense} message from the loco net
      */
-    public static class MultiSenseEvent extends LocoNetEvent<MultiSense, ILocoNetMessage> {
+    public static class MultiSenseEvent extends LocoNetEvent<MultiSense> {
         /**
          * @param locoNetMessage The received message
          */
@@ -305,7 +304,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link UhliFun} message from the loco net
      */
-    public static class UhliFunEvent extends LocoNetEvent<UhliFun, ILocoNetMessage> {
+    public static class UhliFunEvent extends LocoNetEvent<UhliFun> {
         /**
          * @param locoNetMessage The received message
          */
@@ -317,7 +316,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link WrSlData} message from the loco net
      */
-    public static class WrSlDataEvent extends LocoNetEvent<WrSlData, ILocoNetMessage> {
+    public static class WrSlDataEvent extends LocoNetEvent<WrSlData> {
         /**
          * @param locoNetMessage The received message
          */
@@ -329,7 +328,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link SlRdData} message from the loco net
      */
-    public static class SlRdDataEvent extends LocoNetEvent<SlRdData, ILocoNetMessage> {
+    public static class SlRdDataEvent extends LocoNetEvent<SlRdData> {
         /**
          * @param locoNetMessage The received message
          */
@@ -341,7 +340,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link ImmPacket} message from the loco net
      */
-    public static class ImmPacketEvent extends LocoNetEvent<ImmPacket, ILocoNetMessage> {
+    public static class ImmPacketEvent extends LocoNetEvent<ImmPacket> {
         /**
          * @param locoNetMessage The received message
          */
@@ -353,7 +352,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link Rep} message from the loco net
      */
-    public static class RepEvent extends LocoNetEvent<Rep, ILocoNetMessage> {
+    public static class RepEvent extends LocoNetEvent<Rep> {
         /**
          * @param locoNetMessage The received message
          */
@@ -365,7 +364,7 @@ public class LocoNetEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> 
     /**
      * The event for receiving an {@link PeerXfer} message from the loco net
      */
-    public static class PeerXferEvent extends LocoNetEvent<PeerXfer, ILocoNetMessage> {
+    public static class PeerXferEvent extends LocoNetEvent<PeerXfer> {
         /**
          * @param locoNetMessage The received message
          */

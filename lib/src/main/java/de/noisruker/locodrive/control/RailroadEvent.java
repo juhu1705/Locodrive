@@ -19,42 +19,20 @@
 
 package de.noisruker.locodrive.control;
 
-import de.noisruker.locodrive.args.GpOff;
 import org.springframework.context.ApplicationEvent;
 
 /**
  * This class represent an event.
  */
-public abstract class Event<T> extends ApplicationEvent {
-
-    /**
-     * The events result
-     */
-    private T result;
+public abstract class RailroadEvent extends ApplicationEvent {
 
     /**
      * Creates a new Event with the specified name.
      *
      * @param name The events name
      */
-    protected Event(String name) {
+    protected RailroadEvent(String name) {
         super(name);
-        this.result = null;
     }
 
-    /**
-     * Sets the result of this event, which will later on be returned to the events source. By default, this is {@code null}. Please ensure before editing to include this in the calculation for the output value if this is not {@code null}.
-     *
-     * @param result The result to set for this event
-     */
-    public void setResult(T result) {
-        this.result = result;
-    }
-
-    /**
-     * @return The events result
-     */
-    public T getResult() {
-        return this.result;
-    }
 }

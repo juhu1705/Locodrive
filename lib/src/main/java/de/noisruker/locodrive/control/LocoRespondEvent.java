@@ -25,9 +25,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * This event is triggered if a long acknowledgment response to a loco net message is received
  * @param <T> The loco net message the long acknowledgment response is received for
- * @param <R> The return value of this event
  */
-public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessage> extends Event<R> {
+public class LocoRespondEvent<T extends ILocoNetMessage> extends RailroadEvent {
 
     /**
      * The loco net message the response is received for
@@ -66,7 +65,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
     /**
      * The loco net response for the {@link ImmPacket} loco net message
      */
-    public static class ImmResponseEvent extends LocoRespondEvent<ImmPacket, ILocoNetMessage> {
+    public static class ImmResponseEvent extends LocoRespondEvent<ImmPacket> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
@@ -80,7 +79,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
     /**
      * The loco net response for the {@link WrSlData} loco net message
      */
-    public static class WrSlResponseEvent extends LocoRespondEvent<WrSlData, ILocoNetMessage> {
+    public static class WrSlResponseEvent extends LocoRespondEvent<WrSlData> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
@@ -94,7 +93,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
     /**
      * The loco net response for the {@link SwReq} loco net message
      */
-    public static class SwReqResponseEvent extends LocoRespondEvent<SwReq, ILocoNetMessage> {
+    public static class SwReqResponseEvent extends LocoRespondEvent<SwReq> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
@@ -108,7 +107,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
     /**
      * The loco net response for the {@link SwState} loco net message
      */
-    public static class SwStateResponseEvent extends LocoRespondEvent<SwState, ILocoNetMessage> {
+    public static class SwStateResponseEvent extends LocoRespondEvent<SwState> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
@@ -122,7 +121,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
     /**
      * The loco net response for the {@link SwAck} loco net message
      */
-    public static class SwAckResponseEvent extends LocoRespondEvent<SwAck, ILocoNetMessage> {
+    public static class SwAckResponseEvent extends LocoRespondEvent<SwAck> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
@@ -133,7 +132,7 @@ public class LocoRespondEvent<T extends ILocoNetMessage, R extends ILocoNetMessa
         }
     }
 
-    public static class LocoAdrErrorResponseEvent extends LocoRespondEvent<LocoAdr, ILocoNetMessage> {
+    public static class LocoAdrErrorResponseEvent extends LocoRespondEvent<LocoAdr> {
         /**
          * A new loco net response event
          * @param response The long acknowledgement response received
